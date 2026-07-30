@@ -1,6 +1,3 @@
-# Remoo Download - Core Headers
-# Download Engine Interface
-
 #ifndef REMO_DOWNLOAD_ENGINE_DOWNLOAD_ENGINE_H
 #define REMO_DOWNLOAD_ENGINE_DOWNLOAD_ENGINE_H
 
@@ -10,9 +7,14 @@
 #include <vector>
 
 namespace remo {
+namespace storage {
+class StorageManager;
+}
+
 namespace engine {
 
 class INetworkClient;
+class NetworkMonitor;
 
 struct Segment {
     int index = 0;
@@ -33,6 +35,7 @@ struct DownloadRequest {
     std::string categoryId;
     std::string etag;
     std::string lastModified;
+    int maxRetries = 10;
 };
 
 struct DownloadProgress {
@@ -42,25 +45,42 @@ struct DownloadProgress {
     double progressPercent = 0.0;
     int activeSegments = 0;
     int totalSegments = 0;
+    int retryCount = 0;
     std::string statusMessage;
+    std::string errorMessage;
 };
 
 class DownloadEngine {
 public:
     explicit DownloadEngine(int maxConnections = 4);
     DownloadEngine(int maxConnections, std::unique_ptr<INetworkClient> networkClient);
+    DownloadEngine(int maxConnections, std::unique_ptr<INetworkClient> networkClient,
+                   remo::storage::StorageManager* storageManager);
     ~DownloadEngine();
 
     DownloadEngine(const DownloadEngine&) = delete;
     DownloadEngine& operator=(const DownloadEngine&) = delete;
 
-    bool startDownload(const DownloadRequest& request);
+    void setStorageManager(remo::storage::StorageManager* storageManager);
+    void setNetworkMonitor(std::shared_ptr<NetworkMonitor> monitor);
+    void setFastRetryMode(bool enabled);
+
+    int recoverUnfinishedDownloads();
+
+    // Starts a download asynchronously. Returns immediately with a download ID.
+    // Returns -1 on failure (e.g., invalid request, network error on HEAD).
+    int64_t startDownload(const DownloadRequest& request);
+
     bool pauseDownload(int64_t downloadId);
     bool resumeDownload(int64_t downloadId);
     bool cancelDownload(int64_t downloadId);
     DownloadProgress getProgress(int64_t downloadId);
     bool hasActiveDownloads() const;
     int activeDownloadCount() const;
+
+    // Blocks until a specific download is finished (completed, failed, or cancelled).
+    // Used for testing. Returns false if downloadId not found.
+    bool waitForDownload(int64_t downloadId, int timeoutMs = 30000);
 
 private:
     class Impl;

@@ -24,6 +24,8 @@ public:
     void start();
     void stop();
     NetworkStatus currentStatus() const;
+    void setStatus(NetworkStatus status);
+    bool isNetworkAvailable() const;
     void setStatusCallback(StatusCallback callback);
 
 private:

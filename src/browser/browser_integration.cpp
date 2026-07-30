@@ -27,7 +27,7 @@ bool BrowserIntegration::onLinkReceived(const std::string& url) {
     if (!filterLink(url)) {
         return false;
     }
-    pendingLinks.push_back(url);
+    pendingLinks_.push_back(url);
     return true;
 }
 
@@ -62,7 +62,7 @@ bool BrowserIntegration::filterLink(const std::string& url) const {
 }
 
 std::vector<std::string> BrowserIntegration::pendingLinks() const {
-    return pendingLinks;
+    return pendingLinks_;
 }
 
 void BrowserIntegration::setMinFileSize(int64_t bytes) {

@@ -547,6 +547,47 @@ std::vector<DownloadRecord> StorageManager::getDownloadsByStatus(const std::stri
     return records;
 }
 
+std::vector<DownloadRecord> StorageManager::getUnfinishedDownloads() const {
+    const char* sql = R"sql(
+        SELECT id, url, final_url, file_name, save_path, category_id,
+               total_size_bytes, downloaded_bytes, status, priority,
+               supports_resume, checksum_algorithm, checksum_expected,
+               checksum_actual, retry_count, max_retries,
+               speed_limit_bytes_per_sec, referrer_url, auth_required,
+               auth_username, auth_secret_ref, schedule_id, source_extension,
+               error_message, created_at, completed_at, last_checkpoint_at
+        FROM downloads
+        WHERE status IN ('downloading', 'paused', 'reconnecting', 'queued')
+        ORDER BY priority DESC, created_at ASC;
+    )sql";
+
+    StatementPtr stmt;
+    std::vector<DownloadRecord> records;
+    if (!d->prepare(sql, stmt)) {
+        return records;
+    }
+    while (sqlite3_step(stmt.get()) == SQLITE_ROW) {
+        records.push_back(readDownload(stmt.get()));
+    }
+    return records;
+}
+
+bool StorageManager::updateDownloadStatus(int64_t id, const std::string& status, const std::string& errorMessage) {
+    const char* sql = R"sql(
+        UPDATE downloads
+        SET status = ?, error_message = ?, last_checkpoint_at = CURRENT_TIMESTAMP
+        WHERE id = ?;
+    )sql";
+    StatementPtr stmt;
+    if (!d->prepare(sql, stmt)) {
+        return false;
+    }
+    bindText(stmt.get(), 1, status);
+    bindText(stmt.get(), 2, errorMessage);
+    sqlite3_bind_int64(stmt.get(), 3, id);
+    return stepDone(stmt.get());
+}
+
 std::vector<SegmentRecord> StorageManager::getSegments(int64_t downloadId) const {
     const char* sql = R"sql(
         SELECT id, download_id, segment_index, range_start, range_end,
@@ -617,16 +658,26 @@ bool StorageManager::saveCheckpoint(int64_t downloadId, int64_t segmentId, const
     const char* sql = R"sql(
         UPDATE segments
         SET downloaded_bytes = ?, updated_at = CURRENT_TIMESTAMP
-        WHERE id = ? AND download_id = ?;
+        WHERE download_id = ? AND (segment_index = ? OR id = ?);
     )sql";
+
+    int64_t downloadedVal = 0;
+    try {
+        if (!data.empty()) {
+            downloadedVal = std::stoll(data);
+        }
+    } catch (const std::exception&) {
+        downloadedVal = 0;
+    }
 
     StatementPtr stmt;
     if (!d->prepare(sql, stmt)) {
         return false;
     }
-    sqlite3_bind_int64(stmt.get(), 1, std::stoll(data.empty() ? "0" : data));
-    sqlite3_bind_int64(stmt.get(), 2, segmentId);
-    sqlite3_bind_int64(stmt.get(), 3, downloadId);
+    sqlite3_bind_int64(stmt.get(), 1, downloadedVal);
+    sqlite3_bind_int64(stmt.get(), 2, downloadId);
+    sqlite3_bind_int64(stmt.get(), 3, segmentId);
+    sqlite3_bind_int64(stmt.get(), 4, segmentId);
     if (!stepDone(stmt.get())) {
         return false;
     }
@@ -651,13 +702,14 @@ bool StorageManager::saveCheckpoint(int64_t downloadId, int64_t segmentId, const
 }
 
 std::string StorageManager::restoreCheckpoint(int64_t downloadId, int64_t segmentId) const {
-    const char* sql = "SELECT downloaded_bytes FROM segments WHERE download_id = ? AND id = ?;";
+    const char* sql = "SELECT downloaded_bytes FROM segments WHERE download_id = ? AND (segment_index = ? OR id = ?);";
     StatementPtr stmt;
     if (!d->prepare(sql, stmt)) {
         return "";
     }
     sqlite3_bind_int64(stmt.get(), 1, downloadId);
     sqlite3_bind_int64(stmt.get(), 2, segmentId);
+    sqlite3_bind_int64(stmt.get(), 3, segmentId);
     if (sqlite3_step(stmt.get()) != SQLITE_ROW) {
         return "";
     }

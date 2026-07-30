@@ -29,9 +29,7 @@ private:
     bool running = false;
     int64_t minFileSize = 0;
     std::vector<std::string> allowedExtensions;
-    std::vector<std::string> pendingLinks;
-    class Impl;
-    std::unique_ptr<Impl> d;
+    std::vector<std::string> pendingLinks_;
 };
 
 } // namespace browser

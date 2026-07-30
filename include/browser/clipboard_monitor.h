@@ -30,8 +30,6 @@ private:
     int64_t minFileSize = 0;
     std::string lastClipboardContent;
     LinkCallback callback;
-    class Impl;
-    std::unique_ptr<Impl> d;
 };
 
 } // namespace browser

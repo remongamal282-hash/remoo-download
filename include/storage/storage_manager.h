@@ -77,6 +77,8 @@ public:
     DownloadRecord getDownload(int64_t id) const;
     std::vector<DownloadRecord> getAllDownloads() const;
     std::vector<DownloadRecord> getDownloadsByStatus(const std::string& status) const;
+    std::vector<DownloadRecord> getUnfinishedDownloads() const;
+    bool updateDownloadStatus(int64_t id, const std::string& status, const std::string& errorMessage = "");
     std::vector<SegmentRecord> getSegments(int64_t downloadId) const;
     bool saveSegment(const SegmentRecord& segment);
     bool updateSegment(int64_t id, const SegmentRecord& segment);

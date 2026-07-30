@@ -17,7 +17,7 @@ std::vector<Segment> SegmentPlanner::planSegments(int64_t fileSize,
         return {segment};
     }
 
-    const int segmentCount = std::max(1, std::min<int64_t>(connections, fileSize));
+    const int segmentCount = static_cast<int>(std::max<int64_t>(1, std::min<int64_t>(connections, fileSize)));
     const int64_t baseSize = fileSize / segmentCount;
     const int64_t remainder = fileSize % segmentCount;
 

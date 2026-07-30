@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <filesystem>
 #include <fstream>
+#include <thread>
 #include <utility>
 
 namespace remo {
@@ -33,8 +34,10 @@ bool CurlNetworkClient::head(const std::string& url, NetworkResourceInfo& info) 
 
 bool CurlNetworkClient::downloadToFile(const std::string& url,
                                        const ByteRange& range,
-                                       const std::string& outputPath) {
+                                       const std::string& outputPath,
+                                       ProgressCallback progressCb) {
     HttpEngine http;
+    (void)progressCb;
     return http.downloadSegment(url, range.start, range.end, outputPath);
 }
 
@@ -58,6 +61,16 @@ void MockNetworkClient::setFailDownload(bool shouldFail) {
     failDownload = shouldFail;
 }
 
+void MockNetworkClient::setFailDownloadCount(int count) {
+    std::lock_guard<std::mutex> lock(mutex);
+    failDownloadCount = count;
+}
+
+void MockNetworkClient::setChunkDelay(std::chrono::milliseconds delay) {
+    std::lock_guard<std::mutex> lock(mutex);
+    chunkDelay = delay;
+}
+
 bool MockNetworkClient::head(const std::string&, NetworkResourceInfo& info) {
     std::lock_guard<std::mutex> lock(mutex);
     ++headCalls;
@@ -73,16 +86,22 @@ bool MockNetworkClient::head(const std::string&, NetworkResourceInfo& info) {
 
 bool MockNetworkClient::downloadToFile(const std::string&,
                                        const ByteRange& range,
-                                       const std::string& outputPath) {
+                                       const std::string& outputPath,
+                                       ProgressCallback progressCb) {
     std::vector<char> snapshot;
+    std::chrono::milliseconds delay{0};
     {
         std::lock_guard<std::mutex> lock(mutex);
         ++downloadCalls;
         ranges.push_back(range);
-        if (failDownload || !range.isValid()) {
+        if (failDownload || failDownloadCount > 0 || !range.isValid()) {
+            if (failDownloadCount > 0) {
+                --failDownloadCount;
+            }
             return false;
         }
         snapshot = payload;
+        delay = chunkDelay;
     }
 
     const std::filesystem::path path(outputPath);
@@ -92,16 +111,43 @@ bool MockNetworkClient::downloadToFile(const std::string&,
         std::filesystem::create_directories(parent, ec);
     }
 
-    std::ofstream output(path, std::ios::binary | std::ios::trunc);
+    const bool exists = std::filesystem::exists(path);
+    std::ios_base::openmode mode = std::ios::binary;
+    if (exists && range.start > 0) {
+        mode |= std::ios::app;
+    } else {
+        mode |= std::ios::trunc;
+    }
+
+    std::ofstream output(path, mode);
     if (!output.is_open()) {
         return false;
     }
 
     const auto start = static_cast<std::size_t>(std::min<int64_t>(range.start, snapshot.size()));
     const auto end = static_cast<std::size_t>(std::min<int64_t>(range.end + 1, snapshot.size()));
-    if (start < end) {
-        output.write(snapshot.data() + start, static_cast<std::streamsize>(end - start));
+
+    constexpr std::size_t kChunkSize = 64;
+    std::size_t current = start;
+
+    while (current < end) {
+        if (delay.count() > 0) {
+            std::this_thread::sleep_for(delay);
+        }
+
+        const std::size_t chunkSize = std::min(kChunkSize, end - current);
+        output.write(snapshot.data() + current, static_cast<std::streamsize>(chunkSize));
+        output.flush();
+        current += chunkSize;
+
+        const int64_t downloadedSoFar = static_cast<int64_t>(current - start);
+        if (progressCb) {
+            if (!progressCb(downloadedSoFar)) {
+                return false;
+            }
+        }
     }
+
     return static_cast<bool>(output);
 }
 

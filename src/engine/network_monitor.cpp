@@ -33,6 +33,17 @@ NetworkStatus NetworkMonitor::currentStatus() const {
     return status;
 }
 
+void NetworkMonitor::setStatus(NetworkStatus newStatus) {
+    status = newStatus;
+    if (callback) {
+        callback(status);
+    }
+}
+
+bool NetworkMonitor::isNetworkAvailable() const {
+    return status != NetworkStatus::Offline;
+}
+
 void NetworkMonitor::setStatusCallback(StatusCallback callback) {
     this->callback = callback;
 }

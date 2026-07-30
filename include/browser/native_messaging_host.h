@@ -22,8 +22,6 @@ public:
 
 private:
     bool running = false;
-    class Impl;
-    std::unique_ptr<Impl> d;
 };
 
 } // namespace browser

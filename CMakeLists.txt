@@ -33,12 +33,14 @@ endif()
 set(REMOODOWNLOAD_CORE_SOURCES
     src/common/logging.cpp
     src/core/download_manager.cpp
+    src/core/download_orchestrator.cpp
     src/engine/download_engine.cpp
     src/engine/http_engine.cpp
     src/engine/network_client.cpp
     src/engine/reconnect_manager.cpp
     src/engine/network_monitor.cpp
     src/engine/segment_planner.cpp
+    src/ipc/named_pipe_ipc.cpp
     src/queue/queue_manager.cpp
     src/scheduler/schedule_engine.cpp
     src/categories/category_engine.cpp
@@ -57,12 +59,15 @@ set(REMOODOWNLOAD_CORE_HEADERS
     include/common/result.h
     include/common/types.h
     include/core/download_manager.h
+    include/core/download_orchestrator.h
     include/engine/download_engine.h
     include/engine/http_engine.h
     include/engine/network_client.h
     include/engine/reconnect_manager.h
     include/engine/network_monitor.h
     include/engine/segment_planner.h
+    include/ipc/ipc_channel.h
+    include/ipc/named_pipe_ipc.h
     include/queue/queue_manager.h
     include/scheduler/schedule_engine.h
     include/categories/category_engine.h
@@ -119,7 +124,7 @@ target_include_directories(${REMOODOWNLOAD_CORE_TARGET} PUBLIC
 
 target_link_libraries(${REMOODOWNLOAD_CORE_TARGET} PUBLIC
     CURL::libcurl
-    SQLite::SQLite3
+    SQLite3::SQLite3
     OpenSSL::SSL
     OpenSSL::Crypto
 )
@@ -150,6 +155,30 @@ if(BUILD_CLI)
     )
 
     set_target_properties(remo_cli PROPERTIES
+        RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
+    )
+
+    add_executable(remo_service
+        src/service/main.cpp
+    )
+
+    target_link_libraries(remo_service PRIVATE
+        ${REMOODOWNLOAD_CORE_TARGET}
+    )
+
+    set_target_properties(remo_service PROPERTIES
+        RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
+    )
+
+    add_executable(remo_cli_client
+        src/cli_client/main.cpp
+    )
+
+    target_link_libraries(remo_cli_client PRIVATE
+        ${REMOODOWNLOAD_CORE_TARGET}
+    )
+
+    set_target_properties(remo_cli_client PROPERTIES
         RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
     )
 endif()
@@ -208,7 +237,7 @@ if(BUILD_GUI)
 endif()
 
 if(BUILD_CLI)
-    install(TARGETS remo_cli
+    install(TARGETS remo_cli remo_service remo_cli_client
         RUNTIME DESTINATION bin
     )
 endif()
