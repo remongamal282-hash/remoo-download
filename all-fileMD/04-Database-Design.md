@@ -1,4 +1,4 @@
-# وثيقة التصميم الهندسي لمشروع Remo Download
+# وثيقة التصميم الهندسي لمشروع Remoo Download
 ## الفصل 4: تصميم قاعدة البيانات (Database Design)
 
 **رقم الوثيقة:** SDS-04
@@ -264,7 +264,7 @@ WHERE sc.enabled = 1
   - Windows: **Windows Credential Manager** (`CredWriteW`/`CredReadW`).
   - macOS: **Keychain Services API**.
   - عمود `auth_secret_ref` في جدول `downloads` يخزن فقط **معرّف مرجعي** (مثل UUID) يُستخدم للبحث في الـ Keychain وقت الحاجة الفعلية.
-- ملف `remo.db` نفسه يُحفظ في مسار بيانات التطبيق الخاص بالمستخدم فقط (`%APPDATA%\Remo Download\` على ويندوز، `~/Library/Application Support/Remo Download/` على ماك) بصلاحيات وصول مقتصرة على المستخدم الحالي.
+- ملف `remo.db` نفسه يُحفظ في مسار بيانات التطبيق الخاص بالمستخدم فقط (`%APPDATA%\Remoo Download\` على ويندوز، `~/Library/Application Support/Remoo Download/` على ماك) بصلاحيات وصول مقتصرة على المستخدم الحالي.
 
 ---
 

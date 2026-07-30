@@ -1,4 +1,4 @@
-# وثيقة التصميم الهندسي لمشروع Remo Download
+# وثيقة التصميم الهندسي لمشروع Remoo Download
 ## الفصل 6: مخططات UML
 
 **رقم الوثيقة:** SDS-06
@@ -355,7 +355,7 @@
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│                    Remo Download Application             │
+│                    Remoo Download Application             │
 │                                                         │
 │  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐ │
 │  │  UI Layer    │  │  Controller  │  │  Service     │ │
@@ -481,7 +481,7 @@ DownloadManager ──► MainWindow: updateUI()
 ## 6.7 مخطط الحزم (Package Diagram)
 
 ```
-com.remodownload
+com.remoodownload
 │
 ├── core
 │   ├── DownloadManager

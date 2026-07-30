@@ -6,7 +6,7 @@ This directory contains the SDS-02/SDS-03/SDS-08 browser integration artifacts.
 - `firefox/` targets Firefox with Native Messaging support.
 
 Both extensions send `addDownload` messages to the native host named
-`com.remodownload.native_host`.
+`com.remoodownload.native_host`.
 
 ## Native Messaging Notes
 
@@ -19,4 +19,4 @@ stays syntactically valid before packaging. Release packaging should replace it
 with the store extension ID.
 
 Firefox uses the stable extension ID declared in `extensions/firefox/manifest.json`:
-`extension@remodownload.com`.
+`extension@remoodownload.com`.

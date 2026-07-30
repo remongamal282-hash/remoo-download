@@ -53,11 +53,11 @@ std::unique_ptr<std::ofstream> Logger::s_fileStream = nullptr;
 std::ostream* Logger::s_stream = &std::clog;
 std::mutex Logger::s_mutex;
 LogLevel Logger::s_level = LogLevel::Info;
-std::string Logger::s_appName = "RemoDownload";
+std::string Logger::s_appName = "RemooDownload";
 
 void Logger::init(const std::string& appName, const std::string& logDir) {
     std::lock_guard<std::mutex> lock(s_mutex);
-    s_appName = appName.empty() ? "RemoDownload" : appName;
+    s_appName = appName.empty() ? "RemooDownload" : appName;
     s_stream = &std::clog;
     s_fileStream.reset();
 

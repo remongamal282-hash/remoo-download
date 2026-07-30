@@ -1,14 +1,14 @@
 cmake_minimum_required(VERSION 3.16)
-project(RemoDownload VERSION 0.1.0 LANGUAGES CXX)
+project(RemooDownload VERSION 0.1.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-set(REMODOWNLOAD_NAME "RemoDownload")
-set(REMODOWNLOAD_DOMAIN "com.remodownload")
-set(REMODOWNLOAD_CORE_TARGET "remo_core")
-set(REMODOWNLOAD_NATIVE_HOST_TARGET "remo_native_host")
+set(REMOODOWNLOAD_NAME "RemooDownload")
+set(REMOODOWNLOAD_DOMAIN "com.remoodownload")
+set(REMOODOWNLOAD_CORE_TARGET "remo_core")
+set(REMOODOWNLOAD_NATIVE_HOST_TARGET "remo_native_host")
 
 option(BUILD_TESTS "Build unit tests" OFF)
 option(BUILD_CLI "Build CLI tool" OFF)
@@ -26,7 +26,7 @@ if(BUILD_TESTS)
     find_package(GTest REQUIRED)
 endif()
 
-set(REMODOWNLOAD_CORE_SOURCES
+set(REMOODOWNLOAD_CORE_SOURCES
     src/common/logging.cpp
     src/core/download_manager.cpp
     src/engine/download_engine.cpp
@@ -46,7 +46,7 @@ set(REMODOWNLOAD_CORE_SOURCES
     src/plugins/antivirus_hook.cpp
 )
 
-set(REMODOWNLOAD_CORE_HEADERS
+set(REMOODOWNLOAD_CORE_HEADERS
     include/common/logging.h
     include/common/result.h
     include/common/types.h
@@ -68,7 +68,7 @@ set(REMODOWNLOAD_CORE_HEADERS
     include/plugins/antivirus_hook.h
 )
 
-set(REMODOWNLOAD_GUI_SOURCES
+set(REMOODOWNLOAD_GUI_SOURCES
     src/main.cpp
     src/ui/main_window.cpp
     src/ui/add_download_dialog.cpp
@@ -78,7 +78,7 @@ set(REMODOWNLOAD_GUI_SOURCES
     src/ui/tray_icon.cpp
 )
 
-set(REMODOWNLOAD_GUI_HEADERS
+set(REMOODOWNLOAD_GUI_HEADERS
     include/ui/main_window.h
     include/ui/add_download_dialog.h
     include/ui/properties_dialog.h
@@ -87,21 +87,21 @@ set(REMODOWNLOAD_GUI_HEADERS
     include/ui/tray_icon.h
 )
 
-set(REMODOWNLOAD_TRANSLATIONS
-    resources/translations/remodownload_ar.ts
-    resources/translations/remodownload_en.ts
+set(REMOODOWNLOAD_TRANSLATIONS
+    resources/translations/remoodownload_ar.ts
+    resources/translations/remoodownload_en.ts
 )
 
 if(TARGET Qt6::lrelease)
-    qt6_add_translation(REMODOWNLOAD_QM_FILES ${REMODOWNLOAD_TRANSLATIONS})
+    qt6_add_translation(REMOODOWNLOAD_QM_FILES ${REMOODOWNLOAD_TRANSLATIONS})
 endif()
 
-add_library(${REMODOWNLOAD_CORE_TARGET} STATIC
-    ${REMODOWNLOAD_CORE_SOURCES}
-    ${REMODOWNLOAD_CORE_HEADERS}
+add_library(${REMOODOWNLOAD_CORE_TARGET} STATIC
+    ${REMOODOWNLOAD_CORE_SOURCES}
+    ${REMOODOWNLOAD_CORE_HEADERS}
 )
 
-target_include_directories(${REMODOWNLOAD_CORE_TARGET} PUBLIC
+target_include_directories(${REMOODOWNLOAD_CORE_TARGET} PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/include
     ${CMAKE_CURRENT_SOURCE_DIR}/src
     ${CURL_INCLUDE_DIRS}
@@ -109,67 +109,67 @@ target_include_directories(${REMODOWNLOAD_CORE_TARGET} PUBLIC
     ${OpenSSL_INCLUDE_DIR}
 )
 
-target_link_libraries(${REMODOWNLOAD_CORE_TARGET} PUBLIC
+target_link_libraries(${REMOODOWNLOAD_CORE_TARGET} PUBLIC
     CURL::libcurl
     SQLite::SQLite3
     OpenSSL::SSL
     OpenSSL::Crypto
 )
 
-target_compile_definitions(${REMODOWNLOAD_CORE_TARGET} PUBLIC
-    REMODOWNLOAD_VERSION="${PROJECT_VERSION}"
-    REMODOWNLOAD_DOMAIN="${REMODOWNLOAD_DOMAIN}"
-    REMODOWNLOAD_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}"
+target_compile_definitions(${REMOODOWNLOAD_CORE_TARGET} PUBLIC
+    REMOODOWNLOAD_VERSION="${PROJECT_VERSION}"
+    REMOODOWNLOAD_DOMAIN="${REMOODOWNLOAD_DOMAIN}"
+    REMOODOWNLOAD_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}"
 )
 
 if(ENABLE_COVERAGE)
-    target_compile_options(${REMODOWNLOAD_CORE_TARGET} PUBLIC --coverage -fprofile-arcs -ftest-coverage)
-    target_link_options(${REMODOWNLOAD_CORE_TARGET} PUBLIC --coverage)
+    target_compile_options(${REMOODOWNLOAD_CORE_TARGET} PUBLIC --coverage -fprofile-arcs -ftest-coverage)
+    target_link_options(${REMOODOWNLOAD_CORE_TARGET} PUBLIC --coverage)
 endif()
 
 if(ENABLE_ASAN_UBSAN AND (CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU"))
-    target_compile_options(${REMODOWNLOAD_CORE_TARGET} PUBLIC -fsanitize=address,undefined -fno-omit-frame-pointer)
-    target_link_options(${REMODOWNLOAD_CORE_TARGET} PUBLIC -fsanitize=address,undefined)
+    target_compile_options(${REMOODOWNLOAD_CORE_TARGET} PUBLIC -fsanitize=address,undefined -fno-omit-frame-pointer)
+    target_link_options(${REMOODOWNLOAD_CORE_TARGET} PUBLIC -fsanitize=address,undefined)
 endif()
 
-add_executable(${REMODOWNLOAD_NAME}
-    ${REMODOWNLOAD_GUI_SOURCES}
-    ${REMODOWNLOAD_GUI_HEADERS}
-    ${REMODOWNLOAD_QM_FILES}
+add_executable(${REMOODOWNLOAD_NAME}
+    ${REMOODOWNLOAD_GUI_SOURCES}
+    ${REMOODOWNLOAD_GUI_HEADERS}
+    ${REMOODOWNLOAD_QM_FILES}
 )
 
-target_link_libraries(${REMODOWNLOAD_NAME} PRIVATE
-    ${REMODOWNLOAD_CORE_TARGET}
+target_link_libraries(${REMOODOWNLOAD_NAME} PRIVATE
+    ${REMOODOWNLOAD_CORE_TARGET}
     Qt6::Core
     Qt6::Widgets
     Qt6::Network
 )
 
-add_executable(${REMODOWNLOAD_NATIVE_HOST_TARGET}
+add_executable(${REMOODOWNLOAD_NATIVE_HOST_TARGET}
     src/browser/native_host_main.cpp
 )
 
-target_link_libraries(${REMODOWNLOAD_NATIVE_HOST_TARGET} PRIVATE
-    ${REMODOWNLOAD_CORE_TARGET}
+target_link_libraries(${REMOODOWNLOAD_NATIVE_HOST_TARGET} PRIVATE
+    ${REMOODOWNLOAD_CORE_TARGET}
 )
 
-set_target_properties(${REMODOWNLOAD_NAME} PROPERTIES
+set_target_properties(${REMOODOWNLOAD_NAME} PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
     WIN32_EXECUTABLE ON
     MACOSX_BUNDLE ON
     MACOSX_BUNDLE_INFO_PLIST "${CMAKE_CURRENT_SOURCE_DIR}/resources/Info.plist"
 )
 
-add_custom_command(TARGET ${REMODOWNLOAD_NAME} POST_BUILD
+add_custom_command(TARGET ${REMOODOWNLOAD_NAME} POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_directory
         "${CMAKE_CURRENT_SOURCE_DIR}/resources"
-        "$<TARGET_FILE_DIR:${REMODOWNLOAD_NAME}>/resources"
+        "$<TARGET_FILE_DIR:${REMOODOWNLOAD_NAME}>/resources"
 )
 
-add_custom_command(TARGET ${REMODOWNLOAD_NATIVE_HOST_TARGET} POST_BUILD
+add_custom_command(TARGET ${REMOODOWNLOAD_NATIVE_HOST_TARGET} POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_directory
         "${CMAKE_CURRENT_SOURCE_DIR}/resources/native-messaging"
-        "$<TARGET_FILE_DIR:${REMODOWNLOAD_NATIVE_HOST_TARGET}>/native-messaging"
+        "$<TARGET_FILE_DIR:${REMOODOWNLOAD_NATIVE_HOST_TARGET}>/native-messaging"
 )
 
 if(BUILD_TESTS)
@@ -177,12 +177,12 @@ if(BUILD_TESTS)
     add_subdirectory(tests)
 endif()
 
-install(TARGETS ${REMODOWNLOAD_NAME} ${REMODOWNLOAD_NATIVE_HOST_TARGET}
+install(TARGETS ${REMOODOWNLOAD_NAME} ${REMOODOWNLOAD_NATIVE_HOST_TARGET}
     RUNTIME DESTINATION bin
     BUNDLE DESTINATION .
 )
 
-install(DIRECTORY resources/ DESTINATION share/${REMODOWNLOAD_NAME})
-install(DIRECTORY extensions/ DESTINATION share/${REMODOWNLOAD_NAME}/extensions)
-install(DIRECTORY docs/ DESTINATION share/${REMODOWNLOAD_NAME}/docs)
-install(DIRECTORY db/ DESTINATION share/${REMODOWNLOAD_NAME}/db)
+install(DIRECTORY resources/ DESTINATION share/${REMOODOWNLOAD_NAME})
+install(DIRECTORY extensions/ DESTINATION share/${REMOODOWNLOAD_NAME}/extensions)
+install(DIRECTORY docs/ DESTINATION share/${REMOODOWNLOAD_NAME}/docs)
+install(DIRECTORY db/ DESTINATION share/${REMOODOWNLOAD_NAME}/db)

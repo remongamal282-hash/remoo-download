@@ -1,19 +1,19 @@
 {
   "manifest_version": 2,
-  "name": "Remo Download Integration",
+  "name": "Remoo Download Integration",
   "version": "0.1.0",
-  "description": "Send selected downloads to the Remo Download native host.",
+  "description": "Send selected downloads to the Remoo Download native host.",
   "permissions": ["contextMenus", "downloads", "nativeMessaging", "storage", "<all_urls>"],
   "background": {
     "scripts": ["src/background.js"]
   },
   "browser_action": {
-    "default_title": "Remo Download",
+    "default_title": "Remoo Download",
     "default_popup": "src/popup.html"
   },
   "applications": {
     "gecko": {
-      "id": "extension@remodownload.com",
+      "id": "extension@remoodownload.com",
       "strict_min_version": "109.0"
     }
   }

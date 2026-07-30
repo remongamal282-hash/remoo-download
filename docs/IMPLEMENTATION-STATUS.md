@@ -26,7 +26,7 @@ or operationalize the chapter.
 - Added Chromium and Firefox extension scaffolds with Native Messaging support.
 - Added Native Messaging manifests under `resources/native-messaging/`.
 - Added Qt translation source files for Arabic and English.
-- Split the CMake build into `remo_core`, `RemoDownload`, and
+- Split the CMake build into `remo_core`, `RemooDownload`, and
   `remo_native_host` targets.
 - Replaced the unused external `spdlog` dependency in logging code with a
   standard-library logger.

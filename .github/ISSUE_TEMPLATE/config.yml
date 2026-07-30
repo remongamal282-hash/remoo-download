@@ -1,6 +1,5 @@
 blank_issues_enabled: false
 contact_links:
-  - name: Remo Download documentation
+  - name: Remoo Download documentation
     url: https://github.com/
     about: Check the SDS docs before opening broad architecture requests.
-

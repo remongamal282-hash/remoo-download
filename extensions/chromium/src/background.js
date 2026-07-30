@@ -1,4 +1,4 @@
-const NATIVE_HOST = "com.remodownload.native_host";
+const NATIVE_HOST = "com.remoodownload.native_host";
 const DEFAULT_OPTIONS = {
   enabled: true,
   minSizeBytes: 10 * 1024 * 1024,
@@ -45,7 +45,7 @@ function sendToNativeHost(payload) {
 chrome.runtime.onInstalled.addListener(() => {
   chrome.contextMenus.create({
     id: "remo-download-link",
-    title: "Download with Remo Download",
+    title: "Download with Remoo Download",
     contexts: ["link", "video", "audio"]
   });
 });

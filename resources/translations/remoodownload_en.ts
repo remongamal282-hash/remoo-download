@@ -4,8 +4,8 @@
   <context>
     <name>QObject</name>
     <message>
-      <source>Remo Download</source>
-      <translation>Remo Download</translation>
+      <source>Remoo Download</source>
+      <translation>Remoo Download</translation>
     </message>
     <message>
       <source>العربية</source>

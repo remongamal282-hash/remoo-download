@@ -1,4 +1,4 @@
-# وثيقة التصميم الهندسي لمشروع Remo Download
+# وثيقة التصميم الهندسي لمشروع Remoo Download
 ## الفصل 6: مخططات UML (Class & Sequence Diagrams)
 
 **رقم الوثيقة:** SDS-06

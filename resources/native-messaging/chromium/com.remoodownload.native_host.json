@@ -1,6 +1,6 @@
 {
-  "name": "com.remodownload.native_host",
-  "description": "Remo Download Native Messaging Host",
+  "name": "com.remoodownload.native_host",
+  "description": "Remoo Download Native Messaging Host",
   "path": "remo_native_host",
   "type": "stdio",
   "allowed_origins": [

@@ -1,0 +1,9 @@
+{
+  "name": "com.remoodownload.native_host",
+  "description": "Remoo Download Native Messaging Host",
+  "path": "remo_native_host",
+  "type": "stdio",
+  "allowed_extensions": [
+    "extension@remoodownload.com"
+  ]
+}

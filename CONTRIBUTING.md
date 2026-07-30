@@ -1,6 +1,6 @@
-# Contributing to Remo Download
+# Contributing to Remoo Download
 
-Thank you for helping build Remo Download.
+Thank you for helping build Remoo Download.
 
 ## Local Build
 

@@ -36,5 +36,4 @@ body:
     id: environment
     attributes:
       label: Environment
-      placeholder: "Windows 11 / macOS 15, Remo Download version, Qt version"
-
+      placeholder: "Windows 11 / macOS 15, Remoo Download version, Qt version"

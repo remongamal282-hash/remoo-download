@@ -1,15 +1,15 @@
 {
   "manifest_version": 3,
-  "name": "Remo Download Integration",
+  "name": "Remoo Download Integration",
   "version": "0.1.0",
-  "description": "Send selected downloads to the Remo Download native host.",
+  "description": "Send selected downloads to the Remoo Download native host.",
   "permissions": ["contextMenus", "downloads", "nativeMessaging", "storage"],
   "host_permissions": ["<all_urls>"],
   "background": {
     "service_worker": "src/background.js"
   },
   "action": {
-    "default_title": "Remo Download",
+    "default_title": "Remoo Download",
     "default_popup": "src/popup.html"
   }
 }

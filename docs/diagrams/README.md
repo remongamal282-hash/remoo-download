@@ -1,4 +1,4 @@
-# Remo Download UML Diagrams
+# Remoo Download UML Diagrams
 
 This folder contains the executable Mermaid sources for SDS-06.
 

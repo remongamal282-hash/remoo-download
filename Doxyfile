@@ -1,4 +1,4 @@
-PROJECT_NAME           = "Remo Download"
+PROJECT_NAME           = "Remoo Download"
 PROJECT_NUMBER         = 0.1.0
 OUTPUT_DIRECTORY       = docs
 CREATE_SUBDIRS         = NO

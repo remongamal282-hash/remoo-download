@@ -89,7 +89,7 @@ MainWindow::MainWindow()
     : d(std::make_unique<Impl>())
 {
     d->window = new QMainWindow();
-    d->window->setWindowTitle(QObject::tr("Remo Download"));
+    d->window->setWindowTitle(QObject::tr("Remoo Download"));
     d->window->setLayoutDirection(Qt::RightToLeft);
     d->window->setMinimumSize(600, 400);
     d->window->resize(980, 640);

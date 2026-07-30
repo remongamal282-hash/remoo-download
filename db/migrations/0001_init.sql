@@ -1,4 +1,4 @@
--- Initial Remo Download schema.
+-- Initial Remoo Download schema.
 -- The runtime currently embeds this migration for desktop reliability; this file
 -- is the auditable source copy required by SDS-04.
 

@@ -38,7 +38,7 @@ TrayIcon::TrayIcon()
     : d(std::make_unique<Impl>())
 {
     d->trayMenu = new QMenu();
-    d->openAction = d->trayMenu->addAction(QObject::tr("فتح Remo Download"));
+    d->openAction = d->trayMenu->addAction(QObject::tr("فتح Remoo Download"));
     d->pauseAllAction = d->trayMenu->addAction(QObject::tr("إيقاف الكل"));
     d->resumeAllAction = d->trayMenu->addAction(QObject::tr("استئناف الكل"));
     d->trayMenu->addSeparator();
