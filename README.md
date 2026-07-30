@@ -1,4 +1,4 @@
-# Remo Download
+# Remoo Download
 
 مدير تحميل مفتوح المصدر، مجاني بالكامل، يعمل على Windows وmacOS، مبني بلغة C++ مع Qt6.
 
