@@ -15,6 +15,8 @@ set(TEST_SOURCES
     unit/test_scheduler.cpp
     unit/test_database.cpp
     unit/test_checksum.cpp
+    unit/test_segment_planner.cpp
+    unit/test_download_engine.cpp
 )
 
 add_executable(remo_tests ${TEST_SOURCES})

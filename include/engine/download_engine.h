@@ -12,6 +12,8 @@
 namespace remo {
 namespace engine {
 
+class INetworkClient;
+
 struct Segment {
     int index = 0;
     int64_t startByte = 0;
@@ -46,6 +48,7 @@ struct DownloadProgress {
 class DownloadEngine {
 public:
     explicit DownloadEngine(int maxConnections = 4);
+    DownloadEngine(int maxConnections, std::unique_ptr<INetworkClient> networkClient);
     ~DownloadEngine();
 
     DownloadEngine(const DownloadEngine&) = delete;

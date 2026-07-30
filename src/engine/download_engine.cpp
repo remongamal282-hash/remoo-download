@@ -1,104 +1,56 @@
 #include "engine/download_engine.h"
-#include "engine/http_engine.h"
-
-#include <curl/curl.h>
+#include "engine/network_client.h"
+#include "engine/segment_planner.h"
 
 #include <algorithm>
-#include <chrono>
-#include <cstring>
 #include <filesystem>
 #include <fstream>
 #include <map>
 #include <mutex>
 #include <thread>
+#include <vector>
 
 namespace remo {
 namespace engine {
 
-namespace {
-
-size_t writeCallback(void* contents, size_t size, size_t nmemb, void* userp) {
-    auto* stream = static_cast<std::ofstream*>(userp);
-    size_t totalSize = size * nmemb;
-    stream->write(static_cast<char*>(contents), totalSize);
-    return totalSize;
-}
-
-size_t headerCallback(void* contents, size_t size, size_t nmemb, void* userp) {
-    auto* headers = static_cast<std::vector<std::string>*>(userp);
-    size_t totalSize = size * nmemb;
-    std::string headerLine(static_cast<char*>(contents), totalSize);
-    headers->push_back(headerLine);
-    return totalSize;
-}
-
-} // namespace
-
 class DownloadEngine::Impl {
 public:
-    CURLM* multiHandle = nullptr;
     int maxConnections = 4;
     int activeTransfers = 0;
     int64_t nextDownloadId = 1;
     mutable std::mutex mutex;
     std::map<int64_t, DownloadProgress> progressById;
     std::map<int64_t, std::vector<Segment>> segmentsById;
-    std::vector<CURL*> easyHandles;
+    std::unique_ptr<INetworkClient> networkClient;
 };
 
 DownloadEngine::DownloadEngine(int maxConnections)
+    : DownloadEngine(maxConnections, std::make_unique<CurlNetworkClient>())
+{
+}
+
+DownloadEngine::DownloadEngine(int maxConnections, std::unique_ptr<INetworkClient> networkClient)
     : d(std::make_unique<Impl>())
 {
-    d->maxConnections = maxConnections;
-    d->multiHandle = curl_multi_init();
+    d->maxConnections = std::max(1, maxConnections);
+    d->networkClient = std::move(networkClient);
 }
 
-DownloadEngine::~DownloadEngine() {
-    if (d->multiHandle) {
-        curl_multi_cleanup(d->multiHandle);
-    }
-}
+DownloadEngine::~DownloadEngine() = default;
 
 bool DownloadEngine::startDownload(const DownloadRequest& request) {
-    if (request.url.empty()) {
+    if (request.url.empty() || request.filename.empty() || !d->networkClient) {
         return false;
     }
 
-    int64_t fileSize = 0;
-    std::string etag;
-    std::string lastModified;
-
-    if (!HttpEngine().sendHeadRequest(request.url, fileSize, etag, lastModified)) {
+    NetworkResourceInfo resourceInfo;
+    if (!d->networkClient->head(request.url, resourceInfo)) {
         return false;
     }
 
-    HttpEngine http;
-    bool supportsRange = http.supportsRangeRequests(request.url);
-    std::vector<Segment> segments;
-
-    if (supportsRange && fileSize > 0) {
-        int numSegments = std::min(d->maxConnections, static_cast<int>(fileSize / (1024 * 1024)));
-        if (numSegments < 1) {
-            numSegments = 1;
-        }
-        int64_t segmentSize = fileSize / numSegments;
-
-        for (int i = 0; i < numSegments; i++) {
-            Segment seg;
-            seg.index = i;
-            seg.startByte = i * segmentSize;
-            seg.endByte = (i == numSegments - 1) ? fileSize - 1 : (i + 1) * segmentSize - 1;
-            seg.status = Segment::Status::Pending;
-            segments.push_back(seg);
-        }
-    } else {
-        Segment seg;
-        seg.index = 0;
-        seg.startByte = 0;
-        seg.endByte = fileSize > 0 ? fileSize - 1 : 0;
-        seg.status = Segment::Status::Pending;
-        segments.push_back(seg);
-    }
+    const int64_t fileSize = request.fileSize > 0 ? request.fileSize : resourceInfo.contentLength;
+    std::vector<Segment> segments =
+        SegmentPlanner::planSegments(fileSize, d->maxConnections, resourceInfo.supportsRanges);
 
     const int64_t downloadId = d->nextDownloadId++;
     {
@@ -121,29 +73,78 @@ bool DownloadEngine::startDownload(const DownloadRequest& request) {
 
     bool ok = true;
     int64_t downloaded = 0;
-    for (auto& segment : segments) {
-        segment.status = Segment::Status::Downloading;
-        const std::filesystem::path partPath =
-            finalPath.string() + ".part" + std::to_string(segment.index);
-        segment.tempFilePath = partPath.string();
+    std::mutex stateMutex;
+    std::size_t nextSegment = 0;
+    const int workerCount = std::max(1, std::min<int>(d->maxConnections, static_cast<int>(segments.size())));
 
-        if (!http.downloadSegment(request.url, segment.startByte, segment.endByte, segment.tempFilePath)) {
-            segment.status = Segment::Status::Failed;
-            ok = false;
-            break;
+    auto worker = [&]() {
+        while (true) {
+            std::size_t segmentIndex = 0;
+            {
+                std::lock_guard<std::mutex> lock(stateMutex);
+                if (!ok || nextSegment >= segments.size()) {
+                    return;
+                }
+                segmentIndex = nextSegment++;
+                segments[segmentIndex].status = Segment::Status::Downloading;
+            }
+
+            auto& segment = segments[segmentIndex];
+            const std::filesystem::path partPath =
+                finalPath.string() + ".part" + std::to_string(segment.index);
+            segment.tempFilePath = partPath.string();
+
+            const ByteRange range{segment.startByte, segment.endByte};
+            if (!d->networkClient->downloadToFile(request.url, range, segment.tempFilePath)) {
+                std::lock_guard<std::mutex> lock(stateMutex);
+                segment.status = Segment::Status::Failed;
+                ok = false;
+                return;
+            }
+
+            const int64_t segmentBytes = segment.endByte >= segment.startByte
+                ? segment.endByte - segment.startByte + 1
+                : 0;
+
+            {
+                std::lock_guard<std::mutex> lock(stateMutex);
+                segment.downloadedBytes = segmentBytes;
+                segment.status = Segment::Status::Completed;
+                downloaded += segment.downloadedBytes;
+
+                std::lock_guard<std::mutex> progressLock(d->mutex);
+                auto& progress = d->progressById[downloadId];
+                progress.downloadedSize = downloaded;
+                progress.progressPercent = fileSize > 0
+                    ? (static_cast<double>(downloaded) * 100.0 / fileSize)
+                    : 0.0;
+                progress.activeSegments = workerCount;
+            }
         }
+    };
 
-        segment.downloadedBytes = segment.endByte >= segment.startByte
-            ? segment.endByte - segment.startByte + 1
-            : 0;
-        downloaded += segment.downloadedBytes;
-        segment.status = Segment::Status::Completed;
+    std::vector<std::thread> workers;
+    workers.reserve(static_cast<std::size_t>(workerCount));
+    for (int i = 0; i < workerCount; ++i) {
+        workers.emplace_back(worker);
+    }
+    for (auto& thread : workers) {
+        thread.join();
+    }
 
+    {
         std::lock_guard<std::mutex> lock(d->mutex);
         auto& progress = d->progressById[downloadId];
-        progress.downloadedSize = downloaded;
-        progress.progressPercent = fileSize > 0 ? (static_cast<double>(downloaded) * 100.0 / fileSize) : 0.0;
-        progress.activeSegments = 1;
+        progress.activeSegments = 0;
+    }
+
+    if (!ok) {
+        std::error_code removeEc;
+        for (const auto& segment : segments) {
+            if (!segment.tempFilePath.empty()) {
+                std::filesystem::remove(segment.tempFilePath, removeEc);
+            }
+        }
     }
 
     if (ok) {

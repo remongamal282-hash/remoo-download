@@ -41,7 +41,16 @@ HttpEngine::HttpEngine() = default;
 HttpEngine::~HttpEngine() = default;
 
 bool HttpEngine::sendHeadRequest(const std::string& url, int64_t& fileSize, std::string& etag, std::string& lastModified) {
-    return performHeadRequest(url, fileSize, etag, lastModified);
+    std::string finalUrl;
+    return performHeadRequest(url, fileSize, etag, lastModified, finalUrl);
+}
+
+bool HttpEngine::sendHeadRequest(const std::string& url,
+                                 int64_t& fileSize,
+                                 std::string& etag,
+                                 std::string& lastModified,
+                                 std::string& finalUrl) {
+    return performHeadRequest(url, fileSize, etag, lastModified, finalUrl);
 }
 
 bool HttpEngine::supportsRangeRequests(const std::string& url) {
@@ -106,7 +115,11 @@ bool HttpEngine::downloadSegment(const std::string& url, int64_t startByte, int6
     return res == CURLE_OK;
 }
 
-bool HttpEngine::performHeadRequest(const std::string& url, int64_t& fileSize, std::string& etag, std::string& lastModified) {
+bool HttpEngine::performHeadRequest(const std::string& url,
+                                    int64_t& fileSize,
+                                    std::string& etag,
+                                    std::string& lastModified,
+                                    std::string& finalUrl) {
     CURL* curl = curl_easy_init();
     if (!curl) {
         return false;
@@ -126,9 +139,12 @@ bool HttpEngine::performHeadRequest(const std::string& url, int64_t& fileSize, s
     if (res == CURLE_OK) {
         long responseCode = 0;
         curl_off_t contentLength = -1;
+        char* effectiveUrl = nullptr;
         curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &responseCode);
         curl_easy_getinfo(curl, CURLINFO_CONTENT_LENGTH_DOWNLOAD_T, &contentLength);
+        curl_easy_getinfo(curl, CURLINFO_EFFECTIVE_URL, &effectiveUrl);
         fileSize = contentLength > 0 ? static_cast<int64_t>(contentLength) : 0;
+        finalUrl = effectiveUrl != nullptr ? effectiveUrl : url;
 
         for (const auto& header : headers) {
             if (header.rfind("ETag:", 0) == 0) {

@@ -11,15 +11,19 @@ set(REMOODOWNLOAD_CORE_TARGET "remo_core")
 set(REMOODOWNLOAD_NATIVE_HOST_TARGET "remo_native_host")
 
 option(BUILD_TESTS "Build unit tests" OFF)
+option(BUILD_GUI "Build Qt Widgets GUI" ON)
 option(BUILD_CLI "Build CLI tool" OFF)
 option(ENABLE_COVERAGE "Enable code coverage" OFF)
 option(ENABLE_ASAN_UBSAN "Enable AddressSanitizer and UndefinedBehaviorSanitizer" OFF)
 
-find_package(Qt6 REQUIRED COMPONENTS Core Widgets Network)
-find_package(Qt6 OPTIONAL_COMPONENTS LinguistTools)
 find_package(CURL REQUIRED)
 find_package(SQLite3 REQUIRED)
 find_package(OpenSSL REQUIRED)
+
+if(BUILD_GUI)
+    find_package(Qt6 REQUIRED COMPONENTS Core Widgets Network)
+    find_package(Qt6 OPTIONAL_COMPONENTS LinguistTools)
+endif()
 
 if(BUILD_TESTS)
     enable_testing()
@@ -31,8 +35,10 @@ set(REMOODOWNLOAD_CORE_SOURCES
     src/core/download_manager.cpp
     src/engine/download_engine.cpp
     src/engine/http_engine.cpp
+    src/engine/network_client.cpp
     src/engine/reconnect_manager.cpp
     src/engine/network_monitor.cpp
+    src/engine/segment_planner.cpp
     src/queue/queue_manager.cpp
     src/scheduler/schedule_engine.cpp
     src/categories/category_engine.cpp
@@ -53,8 +59,10 @@ set(REMOODOWNLOAD_CORE_HEADERS
     include/core/download_manager.h
     include/engine/download_engine.h
     include/engine/http_engine.h
+    include/engine/network_client.h
     include/engine/reconnect_manager.h
     include/engine/network_monitor.h
+    include/engine/segment_planner.h
     include/queue/queue_manager.h
     include/scheduler/schedule_engine.h
     include/categories/category_engine.h
@@ -92,7 +100,7 @@ set(REMOODOWNLOAD_TRANSLATIONS
     resources/translations/remoodownload_en.ts
 )
 
-if(TARGET Qt6::lrelease)
+if(BUILD_GUI AND TARGET Qt6::lrelease)
     qt6_add_translation(REMOODOWNLOAD_QM_FILES ${REMOODOWNLOAD_TRANSLATIONS})
 endif()
 
@@ -132,56 +140,78 @@ if(ENABLE_ASAN_UBSAN AND (CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU"))
     target_link_options(${REMOODOWNLOAD_CORE_TARGET} PUBLIC -fsanitize=address,undefined)
 endif()
 
-add_executable(${REMOODOWNLOAD_NAME}
-    ${REMOODOWNLOAD_GUI_SOURCES}
-    ${REMOODOWNLOAD_GUI_HEADERS}
-    ${REMOODOWNLOAD_QM_FILES}
-)
+if(BUILD_CLI)
+    add_executable(remo_cli
+        src/cli/main.cpp
+    )
 
-target_link_libraries(${REMOODOWNLOAD_NAME} PRIVATE
-    ${REMOODOWNLOAD_CORE_TARGET}
-    Qt6::Core
-    Qt6::Widgets
-    Qt6::Network
-)
+    target_link_libraries(remo_cli PRIVATE
+        ${REMOODOWNLOAD_CORE_TARGET}
+    )
 
-add_executable(${REMOODOWNLOAD_NATIVE_HOST_TARGET}
-    src/browser/native_host_main.cpp
-)
+    set_target_properties(remo_cli PROPERTIES
+        RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
+    )
+endif()
 
-target_link_libraries(${REMOODOWNLOAD_NATIVE_HOST_TARGET} PRIVATE
-    ${REMOODOWNLOAD_CORE_TARGET}
-)
+if(BUILD_GUI)
+    add_executable(${REMOODOWNLOAD_NAME}
+        ${REMOODOWNLOAD_GUI_SOURCES}
+        ${REMOODOWNLOAD_GUI_HEADERS}
+        ${REMOODOWNLOAD_QM_FILES}
+    )
 
-set_target_properties(${REMOODOWNLOAD_NAME} PROPERTIES
-    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
-    WIN32_EXECUTABLE ON
-    MACOSX_BUNDLE ON
-    MACOSX_BUNDLE_INFO_PLIST "${CMAKE_CURRENT_SOURCE_DIR}/resources/Info.plist"
-)
+    target_link_libraries(${REMOODOWNLOAD_NAME} PRIVATE
+        ${REMOODOWNLOAD_CORE_TARGET}
+        Qt6::Core
+        Qt6::Widgets
+        Qt6::Network
+    )
 
-add_custom_command(TARGET ${REMOODOWNLOAD_NAME} POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy_directory
-        "${CMAKE_CURRENT_SOURCE_DIR}/resources"
-        "$<TARGET_FILE_DIR:${REMOODOWNLOAD_NAME}>/resources"
-)
+    add_executable(${REMOODOWNLOAD_NATIVE_HOST_TARGET}
+        src/browser/native_host_main.cpp
+    )
 
-add_custom_command(TARGET ${REMOODOWNLOAD_NATIVE_HOST_TARGET} POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy_directory
-        "${CMAKE_CURRENT_SOURCE_DIR}/resources/native-messaging"
-        "$<TARGET_FILE_DIR:${REMOODOWNLOAD_NATIVE_HOST_TARGET}>/native-messaging"
-)
+    target_link_libraries(${REMOODOWNLOAD_NATIVE_HOST_TARGET} PRIVATE
+        ${REMOODOWNLOAD_CORE_TARGET}
+    )
 
+    set_target_properties(${REMOODOWNLOAD_NAME} PROPERTIES
+        RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
+        WIN32_EXECUTABLE ON
+        MACOSX_BUNDLE ON
+        MACOSX_BUNDLE_INFO_PLIST "${CMAKE_CURRENT_SOURCE_DIR}/resources/Info.plist"
+    )
+
+    add_custom_command(TARGET ${REMOODOWNLOAD_NAME} POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_directory
+            "${CMAKE_CURRENT_SOURCE_DIR}/resources"
+            "$<TARGET_FILE_DIR:${REMOODOWNLOAD_NAME}>/resources"
+    )
+
+    add_custom_command(TARGET ${REMOODOWNLOAD_NATIVE_HOST_TARGET} POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_directory
+            "${CMAKE_CURRENT_SOURCE_DIR}/resources/native-messaging"
+            "$<TARGET_FILE_DIR:${REMOODOWNLOAD_NATIVE_HOST_TARGET}>/native-messaging"
+    )
+endif()
 if(BUILD_TESTS)
     enable_testing()
     add_subdirectory(tests)
 endif()
 
-install(TARGETS ${REMOODOWNLOAD_NAME} ${REMOODOWNLOAD_NATIVE_HOST_TARGET}
-    RUNTIME DESTINATION bin
-    BUNDLE DESTINATION .
-)
+if(BUILD_GUI)
+    install(TARGETS ${REMOODOWNLOAD_NAME} ${REMOODOWNLOAD_NATIVE_HOST_TARGET}
+        RUNTIME DESTINATION bin
+        BUNDLE DESTINATION .
+    )
+endif()
 
+if(BUILD_CLI)
+    install(TARGETS remo_cli
+        RUNTIME DESTINATION bin
+    )
+endif()
 install(DIRECTORY resources/ DESTINATION share/${REMOODOWNLOAD_NAME})
 install(DIRECTORY extensions/ DESTINATION share/${REMOODOWNLOAD_NAME}/extensions)
 install(DIRECTORY docs/ DESTINATION share/${REMOODOWNLOAD_NAME}/docs)

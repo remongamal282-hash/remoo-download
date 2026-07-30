@@ -13,11 +13,20 @@ public:
     ~HttpEngine();
 
     bool sendHeadRequest(const std::string& url, int64_t& fileSize, std::string& etag, std::string& lastModified);
+    bool sendHeadRequest(const std::string& url,
+                         int64_t& fileSize,
+                         std::string& etag,
+                         std::string& lastModified,
+                         std::string& finalUrl);
     bool supportsRangeRequests(const std::string& url);
     bool downloadSegment(const std::string& url, int64_t startByte, int64_t endByte, const std::string& outputPath);
 
 private:
-    bool performHeadRequest(const std::string& url, int64_t& fileSize, std::string& etag, std::string& lastModified);
+    bool performHeadRequest(const std::string& url,
+                            int64_t& fileSize,
+                            std::string& etag,
+                            std::string& lastModified,
+                            std::string& finalUrl);
 };
 
 } // namespace engine
