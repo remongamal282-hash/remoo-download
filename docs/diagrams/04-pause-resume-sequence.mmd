@@ -1,0 +1,29 @@
+sequenceDiagram
+    actor User
+    participant GUI as remo-gui
+    participant Svc as remo-service
+    participant Core as DownloadTask
+    participant Workers as SegmentWorkers
+    participant DB as SQLite
+
+    User->>GUI: Clicks Pause
+    GUI->>Svc: pauseDownload(id) through IPC
+    Svc->>Core: task.pause()
+    Core->>Core: transitionState(PAUSED)
+    Core->>Workers: Stop signal for every active worker
+    Workers->>DB: Save downloaded_bytes for every segment
+    Workers-->>Core: Safe stop confirmed
+    Core-->>Svc: Paused
+    Svc-->>GUI: Update list state
+
+    Note over User,DB: Later, even after app restart
+
+    User->>GUI: Clicks Resume
+    GUI->>Svc: resumeDownload(id)
+    Svc->>Core: task.resume()
+    Core->>DB: SELECT segments WHERE status != completed
+    Core->>Core: transitionState(DOWNLOADING)
+    loop for each incomplete segment
+        Core->>Workers: Create worker from range_start + downloaded_bytes
+    end
+    Workers-->>Core: Continue exactly from checkpoint

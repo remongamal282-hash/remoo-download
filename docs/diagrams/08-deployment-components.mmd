@@ -1,0 +1,18 @@
+graph TB
+    subgraph Browser["Browser - Chrome / Firefox / Edge"]
+        EXT["Browser Extension<br/>JS/TS - WebExtension"]
+    end
+
+    subgraph OS["Operating System - Windows / macOS"]
+        NMH["native_messaging_host<br/>C++ - short-lived process"]
+        SVC["remo-service<br/>C++ - persistent background service"]
+        GUI["remo-gui<br/>C++ / Qt6 - desktop GUI"]
+        DB[("remo.db<br/>SQLite")]
+        PLUGINS["Plugins<br/>.dll / .dylib"]
+    end
+
+    EXT <-->|Native Messaging JSON / stdio| NMH
+    NMH <-->|IPC: Named Pipe / Unix Socket| SVC
+    GUI <-->|IPC: same channel| SVC
+    SVC <--> DB
+    SVC <-->|C ABI| PLUGINS

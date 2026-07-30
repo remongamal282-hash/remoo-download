@@ -1,0 +1,50 @@
+name: Engineering Task
+description: Track infrastructure, documentation, test, refactor, or technical debt work.
+title: "[Task]: "
+labels: ["type:tech-debt", "needs:triage"]
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      placeholder: What needs to change?
+    validations:
+      required: true
+  - type: input
+    id: sds_reference
+    attributes:
+      label: SDS Reference
+      placeholder: "SDS-07 §7.3, SDS-08 #28"
+  - type: dropdown
+    id: type
+    attributes:
+      label: Type
+      options:
+        - infra
+        - docs
+        - tech-debt
+        - ux
+        - test
+        - refactor
+    validations:
+      required: true
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority
+      options:
+        - Must-have
+        - Should-have
+        - Nice-to-have
+    validations:
+      required: true
+  - type: textarea
+    id: done
+    attributes:
+      label: Definition of Done
+      placeholder: |
+        - [ ] ...
+        - [ ] ...
+    validations:
+      required: true
+

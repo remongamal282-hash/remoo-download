@@ -1,0 +1,68 @@
+labels:
+  - name: priority:must
+    color: "B60205"
+    description: Required for v1.0.
+  - name: priority:should
+    color: "D93F0B"
+    description: Important, can ship after v1.0.
+  - name: priority:nice
+    color: "FBCA04"
+    description: Future enhancement.
+  - name: type:feature
+    color: "0E8A16"
+    description: New feature.
+  - name: type:bug
+    color: "D73A4A"
+    description: Defect or regression.
+  - name: type:tech-debt
+    color: "5319E7"
+    description: Internal cleanup or maintainability work.
+  - name: type:docs
+    color: "0075CA"
+    description: Documentation work.
+  - name: type:infra
+    color: "1D76DB"
+    description: Build, CI, packaging, or tooling work.
+  - name: type:ux
+    color: "C5DEF5"
+    description: User experience and interface polish.
+  - name: type:test
+    color: "5319E7"
+    description: Test coverage or test infrastructure.
+  - name: module:core
+    color: "0052CC"
+    description: Download manager and orchestration logic.
+  - name: module:engine
+    color: "0052CC"
+    description: Network/download engine.
+  - name: module:storage
+    color: "0052CC"
+    description: SQLite, migrations, checkpoints.
+  - name: module:queue
+    color: "0052CC"
+    description: Queueing and priorities.
+  - name: module:scheduler
+    color: "0052CC"
+    description: Scheduling.
+  - name: module:browser
+    color: "0052CC"
+    description: Native messaging and WebExtension integration.
+  - name: module:ui
+    color: "0052CC"
+    description: Qt Widgets UI.
+  - name: module:network
+    color: "0052CC"
+    description: Protocol and libcurl abstraction.
+  - name: module:infra
+    color: "0052CC"
+    description: Tooling, docs, and project setup.
+  - name: good-first-issue
+    color: "7057FF"
+    description: Suitable for a first contribution.
+  - name: help-wanted
+    color: "008672"
+    description: External contributors are welcome.
+  - name: needs:triage
+    color: "EDEDED"
+    description: Needs maintainers to confirm scope and priority.
+

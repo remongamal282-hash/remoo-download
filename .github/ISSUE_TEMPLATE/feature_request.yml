@@ -1,0 +1,52 @@
+name: Feature
+description: Track a new feature from the SDS backlog.
+title: "[Feature]: "
+labels: ["type:feature", "needs:triage"]
+body:
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: What should be built?
+      placeholder: Describe the user-facing or engineering feature.
+    validations:
+      required: true
+  - type: input
+    id: sds_reference
+    attributes:
+      label: SDS Reference
+      placeholder: "SDS-08 #16, SDS-05 §5.4.1"
+    validations:
+      required: true
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority
+      options:
+        - Must-have
+        - Should-have
+        - Nice-to-have
+    validations:
+      required: true
+  - type: dropdown
+    id: story_points
+    attributes:
+      label: Story Points
+      options: ["1", "2", "3", "5", "8", "13"]
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance Criteria
+      placeholder: |
+        - [ ] ...
+        - [ ] ...
+    validations:
+      required: true
+  - type: textarea
+    id: dependencies
+    attributes:
+      label: Dependencies
+      placeholder: "Depends on #..."
+

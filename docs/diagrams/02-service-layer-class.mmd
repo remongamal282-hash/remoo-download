@@ -1,0 +1,59 @@
+classDiagram
+    class DownloadOrchestrator {
+        -QueueManager queueManager
+        -CategoryManager categoryManager
+        -NotificationDispatcher notifier
+        +addDownload(AddDownloadRequest req) DownloadTask
+        +pauseDownload(int id) void
+        +resumeDownload(int id) void
+        +cancelDownload(int id) void
+    }
+
+    class QueueManager {
+        -int maxConcurrentDownloads
+        -PriorityQueue~DownloadTask~ queue
+        +enqueue(DownloadTask task) void
+        +dequeueNext() DownloadTask
+        +setPriority(int id, int priority) void
+    }
+
+    class SchedulerManager {
+        -List~Schedule~ schedules
+        +evaluateDueSchedules() List~DownloadTask~
+        +evaluateCronExpression(string expr, DateTime now) bool
+        +isInQuietHours(Schedule s, DateTime now) bool
+    }
+
+    class CategoryManager {
+        -List~Category~ categories
+        +classify(string fileName) Category
+        +getDefaultPath(Category c) string
+    }
+
+    class NotificationDispatcher {
+        -List~IClientConnection~ subscribers
+        +publish(DownloadEvent event) void
+        +subscribe(IClientConnection client) void
+    }
+
+    class IIpcChannel {
+        <<interface>>
+        +send(Message msg) void
+        +receive() Message
+        +onMessage(callback) void
+    }
+
+    class PluginManager {
+        -List~IRemoPlugin~ loadedPlugins
+        +loadPlugins(string pluginDir) void
+        +executeOnComplete(DownloadTask task) void
+    }
+
+    DownloadOrchestrator --> QueueManager
+    DownloadOrchestrator --> CategoryManager
+    DownloadOrchestrator --> NotificationDispatcher
+    DownloadOrchestrator --> IIpcChannel : receives commands through
+    SchedulerManager --> QueueManager : enqueues due tasks
+    NotificationDispatcher --> PluginManager : notifies on completion
+    PluginManager --> IRemoPlugin
+

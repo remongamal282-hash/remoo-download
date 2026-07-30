@@ -1,0 +1,642 @@
+version: 1
+source: "SDS-08"
+milestones:
+  - id: v1.0
+    priority: Must-have
+    description: First stable release.
+  - id: v1.x
+    priority: Should-have
+    description: Post-1.0 improvements.
+  - id: v2.0+
+    priority: Nice-to-have
+    description: Future major enhancements.
+tasks:
+  - id: RD-001
+    title: "Implement DownloadEngine using libcurl multi"
+    type: feature
+    priority: Must-have
+    milestone: v1.0
+    points: 5
+    module: engine
+    sds: "SDS-08 #1"
+    description: "Central download engine using the libcurl multi interface."
+    acceptance:
+      - "DownloadEngine can start, pause, resume, and cancel tracked downloads."
+      - "Engine reports progress and active transfer counts."
+      - "Unit tests cover successful start and cancellation paths."
+  - id: RD-002
+    title: "Implement segmented downloads"
+    type: feature
+    priority: Must-have
+    milestone: v1.0
+    points: 8
+    module: engine
+    sds: "SDS-08 #2"
+    description: "Split files into byte ranges and download segments concurrently."
+    dependencies: [RD-001]
+    acceptance:
+      - "Range requests are planned according to file size and max connections."
+      - "Completed segments are merged into the final file."
+      - "Integration test validates byte-identical output from local test server."
+  - id: RD-003
+    title: "Implement pause and resume"
+    type: feature
+    priority: Must-have
+    milestone: v1.0
+    points: 5
+    module: core
+    sds: "SDS-08 #3"
+    description: "Persist and restore download state safely."
+    dependencies: [RD-002, RD-007]
+    acceptance:
+      - "Pause stores segment progress."
+      - "Resume continues from the last completed byte."
+      - "Resume works after application restart."
+  - id: RD-004
+    title: "Implement auto reconnect"
+    type: feature
+    priority: Must-have
+    milestone: v1.0
+    points: 5
+    module: engine
+    sds: "SDS-08 #4"
+    description: "Use exponential backoff when network requests fail."
+    dependencies: [RD-001]
+    acceptance:
+      - "Transient failures enter retrying/reconnecting state."
+      - "Retry delay grows with attempt count."
+      - "Max retry exhaustion marks the download failed once."
+  - id: RD-005
+    title: "Implement fallback for servers without Range support"
+    type: feature
+    priority: Must-have
+    milestone: v1.0
+    points: 3
+    module: engine
+    sds: "SDS-08 #5"
+    description: "Automatically switch to single-stream download when Range requests are unsupported."
+    dependencies: [RD-001]
+    acceptance:
+      - "HEAD/GET capability detection records Range support."
+      - "Unsupported servers download with one connection."
+  - id: RD-006
+    title: "Implement periodic checkpoints"
+    type: feature
+    priority: Must-have
+    milestone: v1.0
+    points: 3
+    module: storage
+    sds: "SDS-08 #6"
+    description: "Save checkpoints every N seconds while downloads are active."
+    dependencies: [RD-007]
+    acceptance:
+      - "Checkpoint interval is configurable."
+      - "SQLite records are updated without blocking the UI."
+  - id: RD-007
+    title: "Implement SQLite storage layer"
+    type: feature
+    priority: Must-have
+    milestone: v1.0
+    points: 5
+    module: storage
+    sds: "SDS-08 #7"
+    description: "Manage metadata, resume data, migrations, and checkpoints."
+    acceptance:
+      - "Schema migration runs on first launch."
+      - "Downloads, segments, categories, schedules, and settings persist."
+      - "Database tests run in CI."
+  - id: RD-008
+    title: "Implement priority QueueManager"
+    type: feature
+    priority: Must-have
+    milestone: v1.0
+    points: 3
+    module: queue
+    sds: "SDS-08 #8"
+    description: "Priority queue with freeze/unfreeze support."
+    acceptance:
+      - "Higher priority downloads start first."
+      - "Frozen downloads do not start until unfrozen."
+  - id: RD-009
+    title: "Implement basic scheduler"
+    type: feature
+    priority: Must-have
+    milestone: v1.0
+    points: 5
+    module: scheduler
+    sds: "SDS-08 #9"
+    description: "Schedule downloads to start at a selected time."
+    acceptance:
+      - "One-time schedules are stored and evaluated."
+      - "Due queued downloads are enqueued."
+  - id: RD-010
+    title: "Implement global speed limit"
+    type: feature
+    priority: Must-have
+    milestone: v1.0
+    points: 3
+    module: engine
+    sds: "SDS-08 #10"
+    description: "Token bucket speed limit applied globally."
+    acceptance:
+      - "Global limit can be set and cleared."
+      - "Downloads respect the configured byte budget."
+  - id: RD-011
+    title: "Implement automatic categories"
+    type: feature
+    priority: Must-have
+    milestone: v1.0
+    points: 5
+    module: core
+    sds: "SDS-08 #11"
+    description: "Classify files by extension and choose save folders."
+    acceptance:
+      - "Default categories exist on first launch."
+      - "Rules classify common video, audio, document, and archive files."
+  - id: RD-012
+    title: "Implement Native Messaging Host"
+    type: feature
+    priority: Must-have
+    milestone: v1.0
+    points: 5
+    module: browser
+    sds: "SDS-08 #12"
+    description: "Receive links from browsers through stdin/stdout native messaging."
+    acceptance:
+      - "Host reads length-prefixed JSON messages."
+      - "Invalid messages are rejected safely."
+      - "Valid addDownload messages are forwarded to the app/service layer."
+  - id: RD-013
+    title: "Create Chrome and Edge WebExtension"
+    type: feature
+    priority: Must-have
+    milestone: v1.0
+    points: 5
+    module: browser
+    sds: "SDS-08 #13"
+    description: "Browser extension for Chromium-family browsers."
+    dependencies: [RD-012]
+    acceptance:
+      - "Manifest is valid for Chrome/Edge."
+      - "Extension can send selected download links to the native host."
+  - id: RD-014
+    title: "Create Firefox WebExtension"
+    type: feature
+    priority: Must-have
+    milestone: v1.0
+    points: 4
+    module: browser
+    sds: "SDS-08 #14"
+    description: "Firefox extension with Native Messaging support."
+    dependencies: [RD-012]
+    acceptance:
+      - "Manifest is valid for Firefox."
+      - "Native host name and permissions are documented."
+  - id: RD-015
+    title: "Implement selective link interception"
+    type: feature
+    priority: Must-have
+    milestone: v1.0
+    points: 3
+    module: browser
+    sds: "SDS-08 #15"
+    description: "Filter links by file size and extension before interception."
+    dependencies: [RD-013, RD-014]
+    acceptance:
+      - "Configurable extension filters exist."
+      - "Small or excluded files can be ignored."
+  - id: RD-016
+    title: "Implement main window"
+    type: feature
+    priority: Must-have
+    milestone: v1.0
+    points: 8
+    module: ui
+    sds: "SDS-08 #16"
+    description: "Download list, progress columns, toolbar, status bar, and speed graph."
+    acceptance:
+      - "Main window opens with RTL layout."
+      - "Downloads can be listed and selected."
+      - "Speed graph updates from runtime data."
+  - id: RD-017
+    title: "Implement Add Download dialog"
+    type: feature
+    priority: Must-have
+    milestone: v1.0
+    points: 3
+    module: ui
+    sds: "SDS-08 #17"
+    description: "Manual add URL dialog."
+    acceptance:
+      - "URL, filename, path, category, priority, and connections are editable."
+      - "Dialog validates required URL."
+  - id: RD-018
+    title: "Implement Properties dialog"
+    type: feature
+    priority: Must-have
+    milestone: v1.0
+    points: 3
+    module: ui
+    sds: "SDS-08 #18"
+    description: "Show download details and state."
+    acceptance:
+      - "Dialog displays URL, size, progress, speed, segments, and checksum status."
+  - id: RD-019
+    title: "Implement System Tray"
+    type: feature
+    priority: Must-have
+    milestone: v1.0
+    points: 3
+    module: ui
+    sds: "SDS-08 #19"
+    description: "Tray icon with quick actions."
+    acceptance:
+      - "Tray menu includes open, pause all, resume all, settings, and exit."
+      - "Tooltip summarizes active downloads and total speed."
+  - id: RD-020
+    title: "Implement system notifications"
+    type: feature
+    priority: Must-have
+    milestone: v1.0
+    points: 2
+    module: ui
+    sds: "SDS-08 #20"
+    description: "Native notifications for completed and failed downloads."
+    acceptance:
+      - "Completion notification appears once."
+      - "Failure notification includes retry context."
+  - id: RD-021
+    title: "Implement dark and light themes"
+    type: feature
+    priority: Must-have
+    milestone: v1.0
+    points: 3
+    module: ui
+    sds: "SDS-08 #21"
+    description: "QSS-based dark and light themes."
+    acceptance:
+      - "Theme files are shipped with the app."
+      - "UI can apply dark and light styles."
+  - id: RD-022
+    title: "Implement Arabic RTL support"
+    type: feature
+    priority: Must-have
+    milestone: v1.0
+    points: 3
+    module: ui
+    sds: "SDS-08 #22"
+    description: "Complete RTL layout and Arabic-first UI."
+    acceptance:
+      - "Main UI and dialogs render RTL."
+      - "Arabic strings cover primary workflows."
+  - id: RD-023
+    title: "Implement English localization"
+    type: feature
+    priority: Must-have
+    milestone: v1.0
+    points: 2
+    module: ui
+    sds: "SDS-08 #23"
+    description: "English translation support."
+    acceptance:
+      - "Language can be switched to English."
+      - "Primary UI strings are translated."
+  - id: RD-024
+    title: "Implement unified network layer"
+    type: feature
+    priority: Must-have
+    milestone: v1.0
+    points: 5
+    module: network
+    sds: "SDS-08 #24"
+    description: "libcurl abstraction for HTTP/HTTPS/FTP/FTPS."
+    acceptance:
+      - "Public interface hides libcurl handles from upper layers."
+      - "HTTP headers and Range requests are supported."
+  - id: RD-025
+    title: "Implement HTTP and HTTPS"
+    type: feature
+    priority: Must-have
+    milestone: v1.0
+    points: 3
+    module: network
+    sds: "SDS-08 #25"
+    description: "HTTP/HTTPS protocol support with TLS."
+    dependencies: [RD-024]
+    acceptance:
+      - "HTTPS certificate validation is enabled by default."
+      - "Redirects and basic response metadata are handled."
+  - id: RD-026
+    title: "Implement CMake build system"
+    type: infra
+    priority: Must-have
+    milestone: v1.0
+    points: 3
+    module: infra
+    sds: "SDS-08 #26"
+    description: "CMake build supporting Windows and macOS."
+    acceptance:
+      - "Application target builds with declared dependencies."
+      - "Tests can be enabled with BUILD_TESTS."
+  - id: RD-027
+    title: "Set up basic project structure"
+    type: infra
+    priority: Must-have
+    milestone: v1.0
+    points: 2
+    module: infra
+    sds: "SDS-08 #27"
+    description: "Directories, headers, source files, and entry point."
+    acceptance:
+      - "include, src, tests, docs, resources, and db directories exist."
+  - id: RD-028
+    title: "Set up core documentation"
+    type: docs
+    priority: Must-have
+    milestone: v1.0
+    points: 2
+    module: infra
+    sds: "SDS-08 #28"
+    description: "README and CONTRIBUTING documentation."
+    acceptance:
+      - "README documents dependencies, build, tests, and SDS links."
+      - "CONTRIBUTING documents local workflow and PR expectations."
+  - id: RD-029
+    title: "Implement per-download speed limits"
+    type: feature
+    priority: Should-have
+    milestone: v1.x
+    points: 3
+    module: engine
+    sds: "SDS-08 #29"
+    description: "Token bucket per individual download."
+  - id: RD-030
+    title: "Implement per-category speed limits"
+    type: feature
+    priority: Should-have
+    milestone: v1.x
+    points: 3
+    module: engine
+    sds: "SDS-08 #30"
+    description: "Token bucket per download category."
+  - id: RD-031
+    title: "Implement time-based speed schedules"
+    type: feature
+    priority: Should-have
+    milestone: v1.x
+    points: 5
+    module: scheduler
+    sds: "SDS-08 #31"
+    description: "Multiple scheduled speed-limit windows."
+  - id: RD-032
+    title: "Implement JSON import and export for download lists"
+    type: feature
+    priority: Should-have
+    milestone: v1.x
+    points: 3
+    module: core
+    sds: "SDS-08 #32"
+    description: "Shareable download list templates."
+  - id: RD-033
+    title: "Implement video capture for HLS and DASH"
+    type: feature
+    priority: Should-have
+    milestone: v1.x
+    points: 8
+    module: browser
+    sds: "SDS-08 #33"
+    description: "Detect and download streaming video manifests."
+  - id: RD-034
+    title: "Implement video quality selection"
+    type: feature
+    priority: Should-have
+    milestone: v1.x
+    points: 5
+    module: ui
+    sds: "SDS-08 #34"
+    description: "Let users choose stream quality before starting video downloads."
+  - id: RD-035
+    title: "Implement clipboard monitoring"
+    type: feature
+    priority: Should-have
+    milestone: v1.x
+    points: 3
+    module: browser
+    sds: "SDS-08 #35"
+    description: "Detect copied links and suggest downloading them."
+  - id: RD-036
+    title: "Implement smart clipboard filtering"
+    type: feature
+    priority: Should-have
+    milestone: v1.x
+    points: 2
+    module: browser
+    sds: "SDS-08 #36"
+    description: "Validate copied links before showing prompts."
+  - id: RD-037
+    title: "Implement file integrity verification"
+    type: feature
+    priority: Should-have
+    milestone: v1.x
+    points: 3
+    module: core
+    sds: "SDS-08 #37"
+    description: "Calculate MD5/SHA while downloading and verify final files."
+  - id: RD-038
+    title: "Implement FTP and FTPS"
+    type: feature
+    priority: Should-have
+    milestone: v1.x
+    points: 5
+    module: network
+    sds: "SDS-08 #38"
+    description: "Support FTP/FTPS protocols."
+  - id: RD-039
+    title: "Implement explicit browser cookie transfer"
+    type: feature
+    priority: Should-have
+    milestone: v1.x
+    points: 3
+    module: browser
+    sds: "SDS-08 #39"
+    description: "Allow authenticated downloads with explicit user consent."
+  - id: RD-040
+    title: "Implement recurring schedules"
+    type: feature
+    priority: Should-have
+    milestone: v1.x
+    points: 5
+    module: scheduler
+    sds: "SDS-08 #40"
+    description: "Daily, weekly, and monthly schedules."
+  - id: RD-041
+    title: "Implement quiet hours"
+    type: feature
+    priority: Should-have
+    milestone: v1.x
+    points: 3
+    module: scheduler
+    sds: "SDS-08 #41"
+    description: "Avoid starting new downloads during configured quiet hours."
+  - id: RD-042
+    title: "Implement post-completion actions"
+    type: feature
+    priority: Should-have
+    milestone: v1.x
+    points: 3
+    module: core
+    sds: "SDS-08 #42"
+    description: "Shutdown, sleep, run script, or close app after completion."
+  - id: RD-043
+    title: "Implement podcast downloads via RSS"
+    type: feature
+    priority: Should-have
+    milestone: v1.x
+    points: 5
+    module: core
+    sds: "SDS-08 #43"
+    description: "Automatically download podcast RSS enclosures."
+  - id: RD-044
+    title: "Implement historical speed log with CSV export"
+    type: feature
+    priority: Should-have
+    milestone: v1.x
+    points: 3
+    module: ui
+    sds: "SDS-08 #44"
+    description: "Persist speed history and export it as CSV."
+  - id: RD-045
+    title: "Implement custom QSS themes"
+    type: feature
+    priority: Should-have
+    milestone: v1.x
+    points: 3
+    module: ui
+    sds: "SDS-08 #45"
+    description: "Load user-selected QSS theme files."
+  - id: RD-046
+    title: "Polish RTL user experience"
+    type: ux
+    priority: Should-have
+    milestone: v1.x
+    points: 2
+    module: ui
+    sds: "SDS-08 #46"
+    description: "Improve Arabic layout, alignment, and mirrored interactions."
+  - id: RD-047
+    title: "Support BitTorrent and magnet links"
+    type: feature
+    priority: Nice-to-have
+    milestone: v2.0+
+    points: 13
+    module: network
+    sds: "SDS-08 #47"
+    description: "Full BitTorrent client support."
+  - id: RD-048
+    title: "Implement Site Grabber"
+    type: feature
+    priority: Nice-to-have
+    milestone: v2.0+
+    points: 13
+    module: core
+    sds: "SDS-08 #48"
+    description: "Download complete websites according to crawl rules."
+  - id: RD-049
+    title: "Build companion mobile app"
+    type: feature
+    priority: Nice-to-have
+    milestone: v2.0+
+    points: 13
+    module: infra
+    sds: "SDS-08 #49"
+    description: "Mobile companion for controlling desktop downloads."
+  - id: RD-050
+    title: "Implement cloud download-list sync"
+    type: feature
+    priority: Nice-to-have
+    milestone: v2.0+
+    points: 8
+    module: core
+    sds: "SDS-08 #50"
+    description: "Sync download lists through Google Drive or Nextcloud."
+  - id: RD-051
+    title: "Add official Linux support"
+    type: feature
+    priority: Nice-to-have
+    milestone: v2.0+
+    points: 8
+    module: infra
+    sds: "SDS-08 #51"
+    description: "Ship .deb and .rpm packages with official support."
+  - id: RD-052
+    title: "Support SFTP"
+    type: feature
+    priority: Nice-to-have
+    milestone: v2.0+
+    points: 5
+    module: network
+    sds: "SDS-08 #52"
+    description: "Secure file transfer protocol support."
+  - id: RD-053
+    title: "Implement antivirus plugin"
+    type: feature
+    priority: Nice-to-have
+    milestone: v2.0+
+    points: 5
+    module: core
+    sds: "SDS-08 #53"
+    description: "Plugin hook for antivirus scanning."
+  - id: RD-054
+    title: "Implement command-line interface"
+    type: feature
+    priority: Nice-to-have
+    milestone: v2.0+
+    points: 5
+    module: infra
+    sds: "SDS-08 #54"
+    description: "CLI tool for adding and managing downloads."
+  - id: RD-055
+    title: "Implement Web UI"
+    type: feature
+    priority: Nice-to-have
+    milestone: v2.0+
+    points: 8
+    module: ui
+    sds: "SDS-08 #55"
+    description: "Browser-based control surface."
+  - id: RD-056
+    title: "Implement remote-control mobile companion"
+    type: feature
+    priority: Nice-to-have
+    milestone: v2.0+
+    points: 8
+    module: infra
+    sds: "SDS-08 #56"
+    description: "Remote control from a phone."
+  - id: RD-057
+    title: "Optimize memory usage"
+    type: tech-debt
+    priority: Nice-to-have
+    milestone: v2.0+
+    points: 5
+    module: core
+    sds: "SDS-08 #57"
+    description: "Reduce memory use for very large downloads."
+  - id: RD-058
+    title: "Support HTTP/2 and HTTP/3"
+    type: feature
+    priority: Nice-to-have
+    milestone: v2.0+
+    points: 8
+    module: network
+    sds: "SDS-08 #58"
+    description: "Modern protocol support in the network layer."
+  - id: RD-059
+    title: "Improve dynamic segmentation algorithm"
+    type: tech-debt
+    priority: Nice-to-have
+    milestone: v2.0+
+    points: 5
+    module: engine
+    sds: "SDS-08 #59"
+    description: "Improve balancing and throughput for dynamic segmentation."

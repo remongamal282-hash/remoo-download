@@ -1,0 +1,12 @@
+BasedOnStyle: Google
+ColumnLimit: 120
+IndentWidth: 4
+UseTab: Never
+BreakBeforeBraces: Attach
+AllowShortIfStatementsOnASingleLine: false
+AllowShortFunctionsOnASingleLine: None
+NamespaceIndentation: All
+PointerAlignment: Left
+ReferenceAlignment: Pointer
+SortIncludes: true
+IncludeBlocks: Regroup

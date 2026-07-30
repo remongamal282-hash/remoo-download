@@ -1,0 +1,13 @@
+milestones:
+  - title: v1.0
+    description: First stable release containing all Must-have SDS-08 items.
+    priority: Must-have
+    due_on:
+  - title: v1.x
+    description: Post-1.0 improvements containing Should-have SDS-08 items.
+    priority: Should-have
+    due_on:
+  - title: v2.0+
+    description: Future major enhancements containing Nice-to-have SDS-08 items.
+    priority: Nice-to-have
+    due_on:

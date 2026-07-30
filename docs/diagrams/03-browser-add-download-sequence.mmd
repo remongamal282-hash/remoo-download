@@ -1,0 +1,31 @@
+sequenceDiagram
+    actor User
+    participant Ext as Browser Extension
+    participant NMH as native_messaging_host
+    participant Svc as remo-service
+    participant Core as remo-core
+    participant DB as SQLite
+
+    User->>Ext: Clicks download link
+    Ext->>Ext: Intercepts request (webRequest API)
+    Ext->>NMH: JSON {action: addDownload, url, referrer}
+    NMH->>NMH: Validate message
+    NMH->>Svc: Forward request through IPC
+    Svc->>Svc: CategoryManager.classify(fileName)
+    Svc->>Core: Create DownloadTask
+    Core->>Core: fetchHeaders() checks size and Range support
+    Core->>DB: INSERT INTO downloads, segments
+    Core-->>Svc: DownloadTask created (status=queued)
+    Svc-->>NMH: Confirm add
+    NMH-->>Ext: JSON {success: true, downloadId}
+    Ext-->>User: Toast "Download started"
+    Svc->>Core: start() when queue slot is available
+    Core->>Core: SegmentPlanner.planSegments()
+    loop for each Segment
+        Core->>Core: SegmentWorker.run() in parallel
+        Core->>DB: Update downloaded_bytes in batches
+    end
+    Core-->>Svc: DownloadEvent(completed)
+    Svc->>Svc: NotificationDispatcher.publish()
+    Svc-->>User: System notification "Download completed"
+

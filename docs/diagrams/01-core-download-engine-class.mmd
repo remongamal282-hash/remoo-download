@@ -1,0 +1,105 @@
+classDiagram
+    class DownloadTask {
+        -int id
+        -string url
+        -string savePath
+        -DownloadStatus status
+        -uint64 totalSizeBytes
+        -uint64 downloadedBytes
+        -int priority
+        -int retryCount
+        +start()
+        +pause()
+        +resume()
+        +cancel()
+        +transitionState(DownloadStatus newState)
+        +getProgress() float
+    }
+
+    class DownloadStatus {
+        <<enumeration>>
+        QUEUED
+        DOWNLOADING
+        PAUSED
+        RECONNECTING
+        COMPLETED
+        FAILED
+        CANCELLED
+    }
+
+    class Segment {
+        -int id
+        -int downloadId
+        -int segmentIndex
+        -uint64 rangeStart
+        -uint64 rangeEnd
+        -uint64 downloadedBytes
+        -SegmentStatus status
+        +writeChunk(bytes data, uint64 offset)
+        +getRemainingBytes() uint64
+    }
+
+    class SegmentPlanner {
+        +planSegments(uint64 totalSize, int maxSegments) List~Segment~
+        +rebalance(List~Segment~ activeSegments) List~Segment~
+    }
+
+    class SegmentWorker {
+        -Segment segment
+        -INetworkClient networkClient
+        +run()
+        -onChunkReceived(bytes data)
+        -onError(NetworkError err)
+    }
+
+    class ReconnectManager {
+        -int maxRetries
+        -int backoffBaseMs
+        +handleFailure(DownloadTask task, NetworkError err)
+        +scheduleRetry(DownloadTask task, int attemptNumber)
+    }
+
+    class NetworkReachabilityMonitor {
+        <<interface>>
+        +isNetworkAvailable() bool
+        +subscribeToChanges(callback) void
+    }
+
+    class INetworkClient {
+        <<interface>>
+        +fetchHeaders(string url) FetchResult
+        +fetchRange(string url, uint64 start, uint64 end, IProgressSink sink) FetchResult
+        +supportsResume(string url) bool
+    }
+
+    class CurlNetworkClient {
+        +fetchHeaders(string url) FetchResult
+        +fetchRange(string url, uint64 start, uint64 end, IProgressSink sink) FetchResult
+        +supportsResume(string url) bool
+    }
+
+    class ChecksumStreamer {
+        -HashAlgorithm algorithm
+        +update(bytes chunk)
+        +finalize() string
+    }
+
+    class IDownloadRepository {
+        <<interface>>
+        +save(DownloadTask task) void
+        +findById(int id) DownloadTask
+        +findByStatus(DownloadStatus status) List~DownloadTask~
+        +updateProgress(int id, uint64 bytes) void
+    }
+
+    DownloadTask "1" *-- "many" Segment : contains
+    DownloadTask --> DownloadStatus
+    SegmentPlanner ..> Segment : creates
+    SegmentWorker --> Segment : updates
+    SegmentWorker --> INetworkClient : uses
+    INetworkClient <|.. CurlNetworkClient : implements
+    ReconnectManager --> DownloadTask : monitors
+    ReconnectManager --> NetworkReachabilityMonitor : queries
+    DownloadTask --> ChecksumStreamer : verifies
+    DownloadTask --> IDownloadRepository : persists through
+

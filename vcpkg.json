@@ -1,0 +1,12 @@
+{
+    "name": "remo-download",
+    "version": "0.1.0",
+    "description": "Open source download manager",
+    "dependencies": [
+        "qtbase",
+        "curl",
+        "sqlite3",
+        "openssl",
+        "gtest"
+    ]
+}

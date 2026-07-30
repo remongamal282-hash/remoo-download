@@ -1,0 +1,177 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  lint:
+    name: Format Check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install clang-format
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang-format
+      - name: Check formatting
+        run: |
+          find include src tests -type f \( -name '*.h' -o -name '*.cpp' \) -print0 |
+            xargs -0 clang-format --style=file --dry-run --Werror
+
+  static-analysis:
+    name: Static Analysis
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install analysis tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cppcheck clang-tidy cmake ninja-build g++ qt6-base-dev \
+            libcurl4-openssl-dev libsqlite3-dev libssl-dev libgtest-dev
+      - name: Configure compile database
+        run: cmake -B build/analysis -G Ninja -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTS=ON -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+      - name: Run cppcheck
+        run: |
+          cppcheck --enable=all --inline-suppr --suppress=missingIncludeSystem \
+            --suppress=unusedFunction --error-exitcode=1 src include
+      - name: Run clang-tidy
+        run: |
+          find src -type f -name '*.cpp' -print0 |
+            xargs -0 clang-tidy -p build/analysis
+
+  build:
+    name: Build and Test (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            configure: cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTS=ON
+            build: cmake --build build --parallel
+            test: ctest --test-dir build --output-on-failure
+          - os: windows-latest
+            configure: cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTS=ON
+            build: cmake --build build --config Release --parallel
+            test: ctest --test-dir build --config Release --output-on-failure
+          - os: macos-latest
+            configure: cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTS=ON
+            build: cmake --build build --parallel
+            test: ctest --test-dir build --output-on-failure
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Linux dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake ninja-build g++ qt6-base-dev libcurl4-openssl-dev \
+            libsqlite3-dev libssl-dev libgtest-dev
+      - name: Install Qt on Windows
+        if: runner.os == 'Windows'
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: '6.7.0'
+          host: windows
+          target: desktop
+          arch: win64_msvc2019_64
+      - name: Install Windows dependencies
+        if: runner.os == 'Windows'
+        run: |
+          choco install ninja cmake --installargs 'ADD_CMAKE_TO_PATH=System' -y
+          vcpkg install curl sqlite3 openssl gtest --triplet x64-windows
+          echo "CMAKE_TOOLCHAIN_FILE=$env:VCPKG_INSTALLATION_ROOT\scripts\buildsystems\vcpkg.cmake" >> $env:GITHUB_ENV
+      - name: Install macOS dependencies
+        if: runner.os == 'macOS'
+        run: |
+          brew install cmake ninja qt@6 curl sqlite3 openssl googletest
+          echo "CMAKE_PREFIX_PATH=$(brew --prefix qt@6)" >> "$GITHUB_ENV"
+      - name: Configure
+        shell: bash
+        run: |
+          if [ -n "${CMAKE_TOOLCHAIN_FILE:-}" ]; then
+            ${{ matrix.configure }} -DCMAKE_TOOLCHAIN_FILE="$CMAKE_TOOLCHAIN_FILE"
+          elif [ -n "${CMAKE_PREFIX_PATH:-}" ]; then
+            ${{ matrix.configure }} -DCMAKE_PREFIX_PATH="$CMAKE_PREFIX_PATH"
+          else
+            ${{ matrix.configure }}
+          fi
+      - name: Build
+        run: ${{ matrix.build }}
+      - name: Test
+        run: ${{ matrix.test }}
+
+  coverage:
+    name: Coverage
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake ninja-build g++ qt6-base-dev libcurl4-openssl-dev \
+            libsqlite3-dev libssl-dev libgtest-dev gcovr
+      - name: Configure
+        run: cmake -B build/coverage -G Ninja -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTS=ON -DENABLE_COVERAGE=ON
+      - name: Build
+        run: cmake --build build/coverage --parallel
+      - name: Test
+        run: ctest --test-dir build/coverage --output-on-failure
+      - name: Generate coverage report
+        run: |
+          gcovr --root . --filter 'src/' --filter 'include/' \
+            --exclude 'tests/' --html-details coverage.html --xml coverage.xml \
+            --print-summary
+      - name: Upload coverage artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: |
+            coverage.html
+            coverage*.html
+            coverage.xml
+
+  sanitizers:
+    name: ASan and UBSan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake ninja-build clang qt6-base-dev libcurl4-openssl-dev \
+            libsqlite3-dev libssl-dev libgtest-dev
+      - name: Configure
+        run: |
+          cmake -B build/sanitizers -G Ninja -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTS=ON \
+            -DENABLE_ASAN_UBSAN=ON -DCMAKE_CXX_COMPILER=clang++
+      - name: Build
+        run: cmake --build build/sanitizers --parallel
+      - name: Test
+        run: ctest --test-dir build/sanitizers --output-on-failure
+
+  codeql:
+    name: CodeQL
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: github/codeql-action/init@v3
+        with:
+          languages: cpp
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake ninja-build g++ qt6-base-dev libcurl4-openssl-dev \
+            libsqlite3-dev libssl-dev libgtest-dev
+      - name: Build for CodeQL
+        run: |
+          cmake -B build/codeql -G Ninja -DCMAKE_BUILD_TYPE=Debug -DBUILD_TESTS=ON
+          cmake --build build/codeql --parallel
+      - uses: github/codeql-action/analyze@v3

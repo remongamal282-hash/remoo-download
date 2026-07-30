@@ -1,0 +1,16 @@
+flowchart TB
+    root["com.remodownload"]
+
+    root --> core["core<br/>DownloadManager<br/>DownloadItem<br/>DownloadStats"]
+    root --> engine["engine<br/>DownloadEngine<br/>HttpEngine<br/>FtpEngine<br/>Segment<br/>ReconnectManager<br/>NetworkMonitor"]
+    root --> queue["queue<br/>QueueManager<br/>PriorityQueue"]
+    root --> scheduler["scheduler<br/>ScheduleEngine<br/>Schedule<br/>ScheduleItem"]
+    root --> categories["categories<br/>CategoryEngine<br/>Category<br/>CategoryRule"]
+    root --> browser["browser<br/>BrowserIntegration<br/>NativeMessagingHost<br/>ClipboardMonitor<br/>WebExtension manifest"]
+    root --> storage["storage<br/>StorageManager<br/>Database<br/>Checkpoint"]
+    root --> speed["speed<br/>SpeedLimiter<br/>TokenBucket"]
+    root --> ui["ui<br/>MainWindow<br/>AddDownloadDialog<br/>PropertiesDialog<br/>SettingsDialog<br/>SpeedGraph<br/>TrayIcon"]
+    root --> checksum["checksum<br/>StreamingChecksum"]
+    root --> antivirus["antivirus<br/>AntivirusPlugin"]
+    root --> plugins["plugins<br/>PluginInterface<br/>AntivirusHook<br/>ScriptHook"]
+

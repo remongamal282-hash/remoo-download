@@ -1,0 +1,17 @@
+stateDiagram-v2
+    [*] --> QUEUED : addDownload()
+    QUEUED --> DOWNLOADING : queue slot available
+    DOWNLOADING --> PAUSED : user pauses manually
+    PAUSED --> DOWNLOADING : user resumes
+    DOWNLOADING --> RECONNECTING : network failure
+    RECONNECTING --> DOWNLOADING : reconnect succeeded
+    RECONNECTING --> FAILED : max_retries exceeded
+    DOWNLOADING --> COMPLETED : all segments completed and checksum passed
+    DOWNLOADING --> FAILED : unrecoverable error, e.g. 404
+    QUEUED --> CANCELLED : user cancels
+    DOWNLOADING --> CANCELLED : user cancels
+    PAUSED --> CANCELLED : user cancels
+    FAILED --> QUEUED : manual retry
+    COMPLETED --> [*]
+    CANCELLED --> [*]
+

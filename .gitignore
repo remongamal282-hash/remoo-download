@@ -1,0 +1,64 @@
+# Remo Download - Configuration Files
+
+*.o
+*.obj
+*.so
+*.dylib
+*.dll
+*.exe
+*.pdb
+*.ilk
+*.exp
+*.lib
+*.a
+*.la
+*.lo
+*.lai
+*.deps
+*.Po
+*.Plo
+*.cmake
+cmake_install.cmake
+Makefile
+cmake-build-*/
+build/
+bin/
+lib/
+
+# Qt
+*.user
+*.user.*
+*.qmake.stash
+*.qmake.cache
+moc_*.cpp
+ui_*.h
+qrc_*.cpp
+*.qrc
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Build artifacts
+*.a
+*.lib
+*.dll
+*.so
+*.dylib
+*.exe
+*.app
+
+# Test
+Testing/
+coverage/
+
+# Documentation
+docs/html/

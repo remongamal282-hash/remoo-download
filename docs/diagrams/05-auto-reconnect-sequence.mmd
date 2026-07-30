@@ -1,0 +1,29 @@
+sequenceDiagram
+    participant Worker as SegmentWorker
+    participant RM as ReconnectManager
+    participant NRM as NetworkReachabilityMonitor
+    participant Core as DownloadTask
+    participant DB as SQLite
+
+    Worker->>Worker: Request failed (connection timeout)
+    Worker->>RM: handleFailure(task, NetworkError)
+    RM->>Core: transitionState(RECONNECTING)
+    RM->>NRM: isNetworkAvailable()?
+    alt Network is available
+        RM->>RM: scheduleRetry(task, attempt=1, delay=5s)
+    else Internet is unavailable
+        RM->>NRM: subscribeToChanges(onNetworkRestored)
+        NRM-->>RM: onNetworkRestored()
+        RM->>RM: scheduleRetry(task, attempt=1, delay=0s)
+    end
+    RM->>DB: Log reconnect_attempt
+    RM->>Worker: Restart from last saved checkpoint
+    alt Retry succeeds
+        Worker->>Core: transitionState(DOWNLOADING)
+    else Retry fails and attempts < max_retries
+        Worker->>RM: handleFailure() with increasing backoff
+    else max_retries exceeded
+        Worker->>Core: transitionState(FAILED)
+        Core->>DB: Save error_message and failed event
+    end
+

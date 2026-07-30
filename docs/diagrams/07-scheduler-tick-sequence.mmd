@@ -1,0 +1,20 @@
+sequenceDiagram
+    participant Timer as SchedulerManager Timer
+    participant SM as SchedulerManager
+    participant DB as SQLite
+    participant QM as QueueManager
+    participant Core as remo-core
+
+    loop every minute
+        Timer->>SM: tick()
+        SM->>DB: SELECT schedules WHERE enabled=1
+        SM->>SM: evaluateCronExpression() for recurring schedules
+        alt Due schedule and outside quiet hours
+            SM->>DB: SELECT downloads WHERE schedule_id = X AND status='queued'
+            SM->>QM: enqueue(downloads)
+            QM->>Core: Start download when slot is free
+        else Inside quiet hours
+            SM->>SM: Defer until quiet hours end
+        end
+    end
+
