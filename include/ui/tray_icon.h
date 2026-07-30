@@ -5,6 +5,8 @@
 #include <memory>
 #include <string>
 
+#include <QtGlobal>
+
 QT_BEGIN_NAMESPACE
 class QSystemTrayIcon;
 class QMenu;

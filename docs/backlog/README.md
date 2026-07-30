@@ -30,3 +30,6 @@ pwsh -File tools/export-backlog-issues.ps1
 
 The generated files are useful for reviewing scope, manually creating GitHub
 issues, or feeding a separate GitHub automation step.
+
+The current generated set contains 59 issue files, matching the SDS-08 task
+count.

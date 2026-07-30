@@ -81,3 +81,6 @@ ctest --preset dev
 ```powershell
 pwsh -File tools/export-backlog-issues.ps1
 ```
+
+يمكن مراجعة حالة تنفيذ الوثائق 1-8 في
+[docs/IMPLEMENTATION-STATUS.md](docs/IMPLEMENTATION-STATUS.md).

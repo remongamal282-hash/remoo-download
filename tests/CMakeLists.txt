@@ -15,12 +15,6 @@ set(TEST_SOURCES
     unit/test_scheduler.cpp
     unit/test_database.cpp
     unit/test_checksum.cpp
-    ${PROJECT_SOURCE_DIR}/src/speed/speed_limiter.cpp
-    ${PROJECT_SOURCE_DIR}/src/queue/queue_manager.cpp
-    ${PROJECT_SOURCE_DIR}/src/categories/category_engine.cpp
-    ${PROJECT_SOURCE_DIR}/src/scheduler/schedule_engine.cpp
-    ${PROJECT_SOURCE_DIR}/src/storage/storage_manager.cpp
-    ${PROJECT_SOURCE_DIR}/src/checksum/streaming_checksum.cpp
 )
 
 add_executable(remo_tests ${TEST_SOURCES})
@@ -32,10 +26,9 @@ target_include_directories(remo_tests PRIVATE
 )
 
 target_link_libraries(remo_tests PRIVATE
+    remo_core
     GTest::GTest
     GTest::Main
-    SQLite::SQLite3
-    OpenSSL::Crypto
 )
 
 if(ENABLE_COVERAGE)

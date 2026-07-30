@@ -7,6 +7,8 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 set(REMODOWNLOAD_NAME "RemoDownload")
 set(REMODOWNLOAD_DOMAIN "com.remodownload")
+set(REMODOWNLOAD_CORE_TARGET "remo_core")
+set(REMODOWNLOAD_NATIVE_HOST_TARGET "remo_native_host")
 
 option(BUILD_TESTS "Build unit tests" OFF)
 option(BUILD_CLI "Build CLI tool" OFF)
@@ -14,6 +16,7 @@ option(ENABLE_COVERAGE "Enable code coverage" OFF)
 option(ENABLE_ASAN_UBSAN "Enable AddressSanitizer and UndefinedBehaviorSanitizer" OFF)
 
 find_package(Qt6 REQUIRED COMPONENTS Core Widgets Network)
+find_package(Qt6 OPTIONAL_COMPONENTS LinguistTools)
 find_package(CURL REQUIRED)
 find_package(SQLite3 REQUIRED)
 find_package(OpenSSL REQUIRED)
@@ -23,8 +26,8 @@ if(BUILD_TESTS)
     find_package(GTest REQUIRED)
 endif()
 
-set(REMODOWNLOAD_SOURCES
-    src/main.cpp
+set(REMODOWNLOAD_CORE_SOURCES
+    src/common/logging.cpp
     src/core/download_manager.cpp
     src/engine/download_engine.cpp
     src/engine/http_engine.cpp
@@ -38,18 +41,15 @@ set(REMODOWNLOAD_SOURCES
     src/browser/browser_integration.cpp
     src/browser/native_messaging_host.cpp
     src/browser/clipboard_monitor.cpp
-    src/ui/main_window.cpp
-    src/ui/add_download_dialog.cpp
-    src/ui/properties_dialog.cpp
-    src/ui/settings_dialog.cpp
-    src/ui/speed_graph.cpp
-    src/ui/tray_icon.cpp
     src/checksum/streaming_checksum.cpp
     src/plugins/plugin_interface.cpp
     src/plugins/antivirus_hook.cpp
 )
 
-set(REMODOWNLOAD_HEADERS
+set(REMODOWNLOAD_CORE_HEADERS
+    include/common/logging.h
+    include/common/result.h
+    include/common/types.h
     include/core/download_manager.h
     include/engine/download_engine.h
     include/engine/http_engine.h
@@ -63,20 +63,45 @@ set(REMODOWNLOAD_HEADERS
     include/browser/browser_integration.h
     include/browser/native_messaging_host.h
     include/browser/clipboard_monitor.h
+    include/checksum/streaming_checksum.h
+    include/plugins/plugin_interface.h
+    include/plugins/antivirus_hook.h
+)
+
+set(REMODOWNLOAD_GUI_SOURCES
+    src/main.cpp
+    src/ui/main_window.cpp
+    src/ui/add_download_dialog.cpp
+    src/ui/properties_dialog.cpp
+    src/ui/settings_dialog.cpp
+    src/ui/speed_graph.cpp
+    src/ui/tray_icon.cpp
+)
+
+set(REMODOWNLOAD_GUI_HEADERS
     include/ui/main_window.h
     include/ui/add_download_dialog.h
     include/ui/properties_dialog.h
     include/ui/settings_dialog.h
     include/ui/speed_graph.h
     include/ui/tray_icon.h
-    include/checksum/streaming_checksum.h
-    include/plugins/plugin_interface.h
-    include/plugins/antivirus_hook.h
 )
 
-add_executable(${REMODOWNLOAD_NAME} ${REMODOWNLOAD_SOURCES} ${REMODOWNLOAD_HEADERS})
+set(REMODOWNLOAD_TRANSLATIONS
+    resources/translations/remodownload_ar.ts
+    resources/translations/remodownload_en.ts
+)
 
-target_include_directories(${REMODOWNLOAD_NAME} PRIVATE
+if(TARGET Qt6::lrelease)
+    qt6_add_translation(REMODOWNLOAD_QM_FILES ${REMODOWNLOAD_TRANSLATIONS})
+endif()
+
+add_library(${REMODOWNLOAD_CORE_TARGET} STATIC
+    ${REMODOWNLOAD_CORE_SOURCES}
+    ${REMODOWNLOAD_CORE_HEADERS}
+)
+
+target_include_directories(${REMODOWNLOAD_CORE_TARGET} PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/include
     ${CMAKE_CURRENT_SOURCE_DIR}/src
     ${CURL_INCLUDE_DIRS}
@@ -84,31 +109,49 @@ target_include_directories(${REMODOWNLOAD_NAME} PRIVATE
     ${OpenSSL_INCLUDE_DIR}
 )
 
-target_link_libraries(${REMODOWNLOAD_NAME} PRIVATE
-    Qt6::Core
-    Qt6::Widgets
-    Qt6::Network
+target_link_libraries(${REMODOWNLOAD_CORE_TARGET} PUBLIC
     CURL::libcurl
     SQLite::SQLite3
     OpenSSL::SSL
     OpenSSL::Crypto
 )
 
-target_compile_definitions(${REMODOWNLOAD_NAME} PRIVATE
+target_compile_definitions(${REMODOWNLOAD_CORE_TARGET} PUBLIC
     REMODOWNLOAD_VERSION="${PROJECT_VERSION}"
     REMODOWNLOAD_DOMAIN="${REMODOWNLOAD_DOMAIN}"
     REMODOWNLOAD_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}"
 )
 
 if(ENABLE_COVERAGE)
-    target_compile_options(${REMODOWNLOAD_NAME} PRIVATE --coverage -fprofile-arcs -ftest-coverage)
-    target_link_options(${REMODOWNLOAD_NAME} PRIVATE --coverage)
+    target_compile_options(${REMODOWNLOAD_CORE_TARGET} PUBLIC --coverage -fprofile-arcs -ftest-coverage)
+    target_link_options(${REMODOWNLOAD_CORE_TARGET} PUBLIC --coverage)
 endif()
 
 if(ENABLE_ASAN_UBSAN AND (CMAKE_CXX_COMPILER_ID MATCHES "Clang|GNU"))
-    target_compile_options(${REMODOWNLOAD_NAME} PRIVATE -fsanitize=address,undefined -fno-omit-frame-pointer)
-    target_link_options(${REMODOWNLOAD_NAME} PRIVATE -fsanitize=address,undefined)
+    target_compile_options(${REMODOWNLOAD_CORE_TARGET} PUBLIC -fsanitize=address,undefined -fno-omit-frame-pointer)
+    target_link_options(${REMODOWNLOAD_CORE_TARGET} PUBLIC -fsanitize=address,undefined)
 endif()
+
+add_executable(${REMODOWNLOAD_NAME}
+    ${REMODOWNLOAD_GUI_SOURCES}
+    ${REMODOWNLOAD_GUI_HEADERS}
+    ${REMODOWNLOAD_QM_FILES}
+)
+
+target_link_libraries(${REMODOWNLOAD_NAME} PRIVATE
+    ${REMODOWNLOAD_CORE_TARGET}
+    Qt6::Core
+    Qt6::Widgets
+    Qt6::Network
+)
+
+add_executable(${REMODOWNLOAD_NATIVE_HOST_TARGET}
+    src/browser/native_host_main.cpp
+)
+
+target_link_libraries(${REMODOWNLOAD_NATIVE_HOST_TARGET} PRIVATE
+    ${REMODOWNLOAD_CORE_TARGET}
+)
 
 set_target_properties(${REMODOWNLOAD_NAME} PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
@@ -123,16 +166,23 @@ add_custom_command(TARGET ${REMODOWNLOAD_NAME} POST_BUILD
         "$<TARGET_FILE_DIR:${REMODOWNLOAD_NAME}>/resources"
 )
 
+add_custom_command(TARGET ${REMODOWNLOAD_NATIVE_HOST_TARGET} POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+        "${CMAKE_CURRENT_SOURCE_DIR}/resources/native-messaging"
+        "$<TARGET_FILE_DIR:${REMODOWNLOAD_NATIVE_HOST_TARGET}>/native-messaging"
+)
+
 if(BUILD_TESTS)
     enable_testing()
     add_subdirectory(tests)
 endif()
 
-install(TARGETS ${REMODOWNLOAD_NAME}
+install(TARGETS ${REMODOWNLOAD_NAME} ${REMODOWNLOAD_NATIVE_HOST_TARGET}
     RUNTIME DESTINATION bin
     BUNDLE DESTINATION .
 )
 
 install(DIRECTORY resources/ DESTINATION share/${REMODOWNLOAD_NAME})
+install(DIRECTORY extensions/ DESTINATION share/${REMODOWNLOAD_NAME}/extensions)
 install(DIRECTORY docs/ DESTINATION share/${REMODOWNLOAD_NAME}/docs)
 install(DIRECTORY db/ DESTINATION share/${REMODOWNLOAD_NAME}/db)

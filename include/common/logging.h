@@ -1,10 +1,11 @@
 #ifndef REMO_COMMON_LOGGING_H
 #define REMO_COMMON_LOGGING_H
 
+#include <memory>
+#include <mutex>
+#include <ostream>
+#include <fstream>
 #include <string>
-#include <spdlog/spdlog.h>
-#include <spdlog/sinks/basic_file_sink.h>
-#include <spdlog/sinks/stdout_color_sinks.h>
 
 namespace remo {
 namespace common {
@@ -31,10 +32,16 @@ public:
     static void error(const std::string& msg);
     static void critical(const std::string& msg);
 
-    static std::shared_ptr<spdlog::logger> get();
+    static std::ostream* stream();
 
 private:
-    static std::shared_ptr<spdlog::logger> s_logger;
+    static void write(LogLevel level, const std::string& msg);
+
+    static std::unique_ptr<std::ofstream> s_fileStream;
+    static std::ostream* s_stream;
+    static std::mutex s_mutex;
+    static LogLevel s_level;
+    static std::string s_appName;
 };
 
 } // namespace common

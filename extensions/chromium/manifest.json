@@ -1,0 +1,15 @@
+{
+  "manifest_version": 3,
+  "name": "Remo Download Integration",
+  "version": "0.1.0",
+  "description": "Send selected downloads to the Remo Download native host.",
+  "permissions": ["contextMenus", "downloads", "nativeMessaging", "storage"],
+  "host_permissions": ["<all_urls>"],
+  "background": {
+    "service_worker": "src/background.js"
+  },
+  "action": {
+    "default_title": "Remo Download",
+    "default_popup": "src/popup.html"
+  }
+}

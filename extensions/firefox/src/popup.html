@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Remo Download</title>
+    <link rel="stylesheet" href="popup.css">
+  </head>
+  <body>
+    <main>
+      <label class="row">
+        <span>Intercept downloads</span>
+        <input id="enabled" type="checkbox">
+      </label>
+      <label>
+        Minimum size
+        <input id="minSizeMb" type="number" min="0" step="1">
+        <span>MB</span>
+      </label>
+      <label>
+        Extensions
+        <input id="extensions" type="text" placeholder="zip,mp4,pdf">
+      </label>
+      <button id="save" type="button">Save</button>
+    </main>
+    <script src="popup.js"></script>
+  </body>
+</html>

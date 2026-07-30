@@ -1,79 +1,125 @@
 #include "common/logging.h"
 
+#include <chrono>
+#include <ctime>
+#include <fstream>
+#include <iomanip>
+#include <iostream>
+#include <sstream>
+
 namespace remo {
 namespace common {
+namespace {
 
-std::shared_ptr<spdlog::logger> Logger::s_logger = nullptr;
+int levelWeight(LogLevel level) {
+    switch (level) {
+        case LogLevel::Debug: return 0;
+        case LogLevel::Info: return 1;
+        case LogLevel::Warning: return 2;
+        case LogLevel::Error: return 3;
+        case LogLevel::Critical: return 4;
+    }
+    return 1;
+}
+
+const char* levelName(LogLevel level) {
+    switch (level) {
+        case LogLevel::Debug: return "DEBUG";
+        case LogLevel::Info: return "INFO";
+        case LogLevel::Warning: return "WARNING";
+        case LogLevel::Error: return "ERROR";
+        case LogLevel::Critical: return "CRITICAL";
+    }
+    return "INFO";
+}
+
+std::string timestamp() {
+    const auto now = std::chrono::system_clock::now();
+    const std::time_t time = std::chrono::system_clock::to_time_t(now);
+    std::tm tm{};
+#if defined(_WIN32)
+    localtime_s(&tm, &time);
+#else
+    localtime_r(&time, &tm);
+#endif
+    std::ostringstream out;
+    out << std::put_time(&tm, "%Y-%m-%d %H:%M:%S");
+    return out.str();
+}
+
+} // namespace
+
+std::unique_ptr<std::ofstream> Logger::s_fileStream = nullptr;
+std::ostream* Logger::s_stream = &std::clog;
+std::mutex Logger::s_mutex;
+LogLevel Logger::s_level = LogLevel::Info;
+std::string Logger::s_appName = "RemoDownload";
 
 void Logger::init(const std::string& appName, const std::string& logDir) {
-    try {
-        std::vector<spdlog::sink_ptr> sinks;
-        sinks.push_back(std::make_shared<spdlog::sinks::stdout_color_sink_mt>());
+    std::lock_guard<std::mutex> lock(s_mutex);
+    s_appName = appName.empty() ? "RemoDownload" : appName;
+    s_stream = &std::clog;
+    s_fileStream.reset();
 
-        if (!logDir.empty()) {
-            std::string logPath = logDir + "/" + appName + ".log";
-            sinks.push_back(std::make_shared<spdlog::sinks::basic_file_sink_mt>(logPath, true));
+    if (!logDir.empty()) {
+        const std::string logPath = logDir + "/" + s_appName + ".log";
+        auto file = std::make_unique<std::ofstream>(logPath, std::ios::app);
+        if (file->good()) {
+            s_stream = file.get();
+            s_fileStream = std::move(file);
         }
-
-        auto combinedSink = std::make_shared<spdlog::sinks::combined_sink>(sinks);
-        s_logger = std::make_shared<spdlog::logger>(appName, combinedSink);
-        s_logger->set_level(spdlog::level::debug);
-        s_logger->flush_on(spdlog::level::err);
-
-        spdlog::register_logger(s_logger);
-    } catch (const spdlog::spdlog_ex& ex) {
-        std::cerr << "Logger init failed: " << ex.what() << std::endl;
     }
 }
 
 void Logger::shutdown() {
-    s_logger.reset();
-    spdlog::drop_all();
+    std::lock_guard<std::mutex> lock(s_mutex);
+    s_fileStream.reset();
+    s_stream = &std::clog;
 }
 
 void Logger::setLevel(LogLevel level) {
-    if (!s_logger) return;
-    switch (level) {
-        case LogLevel::Debug: s_logger->set_level(spdlog::level::debug); break;
-        case LogLevel::Info: s_logger->set_level(spdlog::level::info); break;
-        case LogLevel::Warning: s_logger->set_level(spdlog::level::warn); break;
-        case LogLevel::Error: s_logger->set_level(spdlog::level::err); break;
-        case LogLevel::Critical: s_logger->set_level(spdlog::level::critical); break;
-    }
+    s_level = level;
 }
 
 LogLevel Logger::level() {
-    if (!s_logger) return LogLevel::Info;
-    auto lvl = s_logger->level();
-    if (lvl == spdlog::level::debug) return LogLevel::Debug;
-    if (lvl == spdlog::level::info) return LogLevel::Info;
-    if (lvl == spdlog::level::warn) return LogLevel::Warning;
-    if (lvl == spdlog::level::err) return LogLevel::Error;
-    return LogLevel::Critical;
+    return s_level;
 }
 
 void Logger::debug(const std::string& msg) {
-    if (s_logger) s_logger->debug(msg);
+    Logger::write(LogLevel::Debug, msg);
 }
 
 void Logger::info(const std::string& msg) {
-    if (s_logger) s_logger->info(msg);
+    Logger::write(LogLevel::Info, msg);
 }
 
 void Logger::warning(const std::string& msg) {
-    if (s_logger) s_logger->warn(msg);
+    Logger::write(LogLevel::Warning, msg);
 }
 
 void Logger::error(const std::string& msg) {
-    if (s_logger) s_logger->error(msg);
+    Logger::write(LogLevel::Error, msg);
 }
 
 void Logger::critical(const std::string& msg) {
-    if (s_logger) s_logger->critical(msg);
+    Logger::write(LogLevel::Critical, msg);
 }
 
-std::shared_ptr<spdlog::logger> Logger::get() {
-    return s_logger;
+std::ostream* Logger::stream() {
+    return s_stream;
+}
+
+void Logger::write(LogLevel level, const std::string& msg) {
+    if (levelWeight(level) < levelWeight(s_level)) {
+        return;
+    }
+    std::lock_guard<std::mutex> lock(s_mutex);
+    if (!s_stream) {
+        return;
+    }
+    (*s_stream) << timestamp() << " [" << levelName(level) << "] "
+                << s_appName << ": " << msg << '\n';
+    s_stream->flush();
 }
 
 } // namespace common
