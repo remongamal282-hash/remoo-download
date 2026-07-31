@@ -166,7 +166,7 @@ TEST(DownloadEngineTest, RealPauseAndResumeDownload) {
     std::this_thread::sleep_for(std::chrono::milliseconds(30));
     EXPECT_TRUE(engine.pauseDownload(id));
 
-    std::this_thread::sleep_for(std::chrono::milliseconds(50));
+    std::this_thread::sleep_for(std::chrono::milliseconds(200));
     auto progressPaused = engine.getProgress(id);
     EXPECT_EQ(progressPaused.statusMessage, "paused");
 

@@ -36,6 +36,9 @@ struct DownloadRequest {
     std::string etag;
     std::string lastModified;
     int maxRetries = 10;
+    // When > 0, the engine uses this as the task ID instead of its atomic counter.
+    // Used during startup recovery so the engine ID matches the existing DB record ID.
+    int64_t hintId = -1;
 };
 
 struct DownloadProgress {
@@ -66,6 +69,8 @@ public:
     void setFastRetryMode(bool enabled);
 
     int recoverUnfinishedDownloads();
+
+    std::string getLastError() const;
 
     // Starts a download asynchronously. Returns immediately with a download ID.
     // Returns -1 on failure (e.g., invalid request, network error on HEAD).

@@ -376,54 +376,75 @@ int StorageManager::getSchemaVersion() const {
 }
 
 int64_t StorageManager::saveDownload(const DownloadRecord& record) {
-    const char* sql = R"sql(
-        INSERT INTO downloads (
-            url, final_url, file_name, save_path, category_id, total_size_bytes,
-            downloaded_bytes, status, priority, supports_resume, checksum_algorithm,
-            checksum_expected, checksum_actual, retry_count, max_retries,
-            speed_limit_bytes_per_sec, referrer_url, auth_required, auth_username,
-            auth_secret_ref, schedule_id, source_extension, error_message,
-            completed_at, last_checkpoint_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
-    )sql";
+    // If record.id > 0 we use an explicit INSERT so the DB row ID matches the
+    // engine-assigned ID, keeping engine progress lookups (getProgress(record.id))
+    // consistent with what getStatus reads from DB.
+    const bool explicitId = record.id > 0;
+
+    std::string sqlStr;
+    if (explicitId) {
+        sqlStr =
+            "INSERT OR REPLACE INTO downloads ("
+            "id, url, final_url, file_name, save_path, category_id, total_size_bytes,"
+            "downloaded_bytes, status, priority, supports_resume, checksum_algorithm,"
+            "checksum_expected, checksum_actual, retry_count, max_retries,"
+            "speed_limit_bytes_per_sec, referrer_url, auth_required, auth_username,"
+            "auth_secret_ref, schedule_id, source_extension, error_message,"
+            "completed_at, last_checkpoint_at"
+            ") VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?);";
+    } else {
+        sqlStr =
+            "INSERT INTO downloads ("
+            "url, final_url, file_name, save_path, category_id, total_size_bytes,"
+            "downloaded_bytes, status, priority, supports_resume, checksum_algorithm,"
+            "checksum_expected, checksum_actual, retry_count, max_retries,"
+            "speed_limit_bytes_per_sec, referrer_url, auth_required, auth_username,"
+            "auth_secret_ref, schedule_id, source_extension, error_message,"
+            "completed_at, last_checkpoint_at"
+            ") VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?);";
+    }
 
     StatementPtr stmt;
-    if (!d->prepare(sql, stmt)) {
+    if (!d->prepare(sqlStr.c_str(), stmt)) {
         return -1;
     }
 
-    bindText(stmt.get(), 1, record.url);
-    bindText(stmt.get(), 2, record.finalUrl);
-    bindText(stmt.get(), 3, record.filename);
-    bindText(stmt.get(), 4, record.savePath);
-    bindNullableInt64(stmt.get(), 5, record.categoryId);
-    bindNullableInt64(stmt.get(), 6, record.totalSizeBytes);
-    sqlite3_bind_int64(stmt.get(), 7, record.downloadedBytes);
-    bindText(stmt.get(), 8, record.status.empty() ? std::string("queued") : record.status);
-    sqlite3_bind_int(stmt.get(), 9, record.priority);
-    sqlite3_bind_int(stmt.get(), 10, record.supportsResume ? 1 : 0);
-    bindText(stmt.get(), 11, record.checksumAlgorithm);
-    bindText(stmt.get(), 12, record.checksumExpected);
-    bindText(stmt.get(), 13, record.checksumActual);
-    sqlite3_bind_int(stmt.get(), 14, record.retryCount);
-    sqlite3_bind_int(stmt.get(), 15, record.maxRetries);
-    bindNullableInt64(stmt.get(), 16, record.speedLimitBytesPerSec);
-    bindText(stmt.get(), 17, record.referrerUrl);
-    sqlite3_bind_int(stmt.get(), 18, record.authRequired ? 1 : 0);
-    bindText(stmt.get(), 19, record.authUsername);
-    bindText(stmt.get(), 20, record.authSecretRef);
-    bindNullableInt64(stmt.get(), 21, record.scheduleId);
-    bindText(stmt.get(), 22, record.sourceExtension);
-    bindText(stmt.get(), 23, record.errorMessage);
-    bindText(stmt.get(), 24, record.completedAt);
-    bindText(stmt.get(), 25, record.lastCheckpointAt);
+    int p = 1;
+    if (explicitId) {
+        sqlite3_bind_int64(stmt.get(), p++, record.id);
+    }
+    bindText(stmt.get(), p++, record.url);
+    bindText(stmt.get(), p++, record.finalUrl);
+    bindText(stmt.get(), p++, record.filename);
+    bindText(stmt.get(), p++, record.savePath);
+    bindNullableInt64(stmt.get(), p++, record.categoryId);
+    bindNullableInt64(stmt.get(), p++, record.totalSizeBytes);
+    sqlite3_bind_int64(stmt.get(), p++, record.downloadedBytes);
+    bindText(stmt.get(), p++, record.status.empty() ? std::string("queued") : record.status);
+    sqlite3_bind_int(stmt.get(), p++, record.priority);
+    sqlite3_bind_int(stmt.get(), p++, record.supportsResume ? 1 : 0);
+    bindText(stmt.get(), p++, record.checksumAlgorithm);
+    bindText(stmt.get(), p++, record.checksumExpected);
+    bindText(stmt.get(), p++, record.checksumActual);
+    sqlite3_bind_int(stmt.get(), p++, record.retryCount);
+    sqlite3_bind_int(stmt.get(), p++, record.maxRetries);
+    bindNullableInt64(stmt.get(), p++, record.speedLimitBytesPerSec);
+    bindText(stmt.get(), p++, record.referrerUrl);
+    sqlite3_bind_int(stmt.get(), p++, record.authRequired ? 1 : 0);
+    bindText(stmt.get(), p++, record.authUsername);
+    bindText(stmt.get(), p++, record.authSecretRef);
+    bindNullableInt64(stmt.get(), p++, record.scheduleId);
+    bindText(stmt.get(), p++, record.sourceExtension);
+    bindText(stmt.get(), p++, record.errorMessage);
+    bindText(stmt.get(), p++, record.completedAt);
+    bindText(stmt.get(), p++, record.lastCheckpointAt);
 
     if (!stepDone(stmt.get())) {
         return -1;
     }
-    const int64_t id = sqlite3_last_insert_rowid(d->db);
-    logDownloadEvent(id, "created");
-    return id;
+    const int64_t savedId = explicitId ? record.id : sqlite3_last_insert_rowid(d->db);
+    logDownloadEvent(savedId, "created");
+    return savedId;
 }
 
 bool StorageManager::updateDownload(int64_t id, const DownloadRecord& record) {

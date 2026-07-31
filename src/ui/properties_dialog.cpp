@@ -5,6 +5,7 @@
 #include <QFormLayout>
 #include <QLabel>
 #include <QProgressBar>
+#include <QPushButton>
 #include <QTableWidget>
 #include <QTabWidget>
 #include <QVBoxLayout>

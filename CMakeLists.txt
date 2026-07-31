@@ -81,23 +81,33 @@ set(REMOODOWNLOAD_CORE_HEADERS
     include/plugins/antivirus_hook.h
 )
 
-set(REMOODOWNLOAD_GUI_SOURCES
-    src/main.cpp
+set(REMOODOWNLOAD_GUI_LIB_SOURCES
     src/ui/main_window.cpp
     src/ui/add_download_dialog.cpp
+    src/ui/ipc_service_client.cpp
     src/ui/properties_dialog.cpp
     src/ui/settings_dialog.cpp
     src/ui/speed_graph.cpp
     src/ui/tray_icon.cpp
 )
 
+set(REMOODOWNLOAD_GUI_SOURCES
+    src/main.cpp
+    ${REMOODOWNLOAD_GUI_LIB_SOURCES}
+)
+
 set(REMOODOWNLOAD_GUI_HEADERS
     include/ui/main_window.h
     include/ui/add_download_dialog.h
+    include/ui/ipc_service_client.h
     include/ui/properties_dialog.h
     include/ui/settings_dialog.h
     include/ui/speed_graph.h
     include/ui/tray_icon.h
+)
+
+set(REMOODOWNLOAD_GUI_TEST_SOURCES
+    tests/unit/test_main_window_smoke.cpp
 )
 
 set(REMOODOWNLOAD_TRANSLATIONS
@@ -193,6 +203,7 @@ if(BUILD_GUI)
     target_link_libraries(${REMOODOWNLOAD_NAME} PRIVATE
         ${REMOODOWNLOAD_CORE_TARGET}
         Qt6::Core
+        Qt6::Gui
         Qt6::Widgets
         Qt6::Network
     )
@@ -207,10 +218,57 @@ if(BUILD_GUI)
 
     set_target_properties(${REMOODOWNLOAD_NAME} PROPERTIES
         RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
-        WIN32_EXECUTABLE ON
         MACOSX_BUNDLE ON
         MACOSX_BUNDLE_INFO_PLIST "${CMAKE_CURRENT_SOURCE_DIR}/resources/Info.plist"
     )
+    if(WIN32)
+        set_target_properties(${REMOODOWNLOAD_NAME} PROPERTIES WIN32_EXECUTABLE ON)
+    endif()
+
+    # GUI smoke tests (require Qt6::Test)
+    find_package(Qt6 OPTIONAL_COMPONENTS Test)
+    if(BUILD_TESTS AND Qt6Test_FOUND)
+        find_package(GTest REQUIRED)
+        add_executable(remo_gui_tests
+            ${REMOODOWNLOAD_GUI_TEST_SOURCES}
+            ${REMOODOWNLOAD_GUI_LIB_SOURCES}
+        )
+        target_include_directories(remo_gui_tests PRIVATE
+            ${CMAKE_CURRENT_SOURCE_DIR}/include
+            ${CMAKE_CURRENT_SOURCE_DIR}/src
+            ${GTEST_INCLUDE_DIRS}
+        )
+        target_link_libraries(remo_gui_tests PRIVATE
+            ${REMOODOWNLOAD_CORE_TARGET}
+            Qt6::Core
+            Qt6::Gui
+            Qt6::Widgets
+            Qt6::Test
+            GTest::GTest
+        )
+        set_target_properties(remo_gui_tests PROPERTIES
+            RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
+        )
+        add_test(NAME remo_gui_tests COMMAND remo_gui_tests)
+
+        add_executable(capture_gui_screenshot
+            tools/capture_gui_screenshot.cpp
+            ${REMOODOWNLOAD_GUI_LIB_SOURCES}
+        )
+        target_include_directories(capture_gui_screenshot PRIVATE
+            ${CMAKE_CURRENT_SOURCE_DIR}/include
+            ${CMAKE_CURRENT_SOURCE_DIR}/src
+        )
+        target_link_libraries(capture_gui_screenshot PRIVATE
+            ${REMOODOWNLOAD_CORE_TARGET}
+            Qt6::Core
+            Qt6::Gui
+            Qt6::Widgets
+        )
+        set_target_properties(capture_gui_screenshot PROPERTIES
+            RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
+        )
+    endif()
 
     add_custom_command(TARGET ${REMOODOWNLOAD_NAME} POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy_directory
@@ -224,6 +282,107 @@ if(BUILD_GUI)
             "$<TARGET_FILE_DIR:${REMOODOWNLOAD_NATIVE_HOST_TARGET}>/native-messaging"
     )
 endif()
+
+if(WIN32)
+    get_filename_component(COMPILER_BIN_DIR "${CMAKE_CXX_COMPILER}" DIRECTORY)
+
+    set(DLL_SEARCH_DIRS
+        "${COMPILER_BIN_DIR}"
+        "${CMAKE_CURRENT_SOURCE_DIR}/vcpkg_installed/x64-mingw-dynamic/bin"
+        "${CMAKE_CURRENT_SOURCE_DIR}/vcpkg_installed/x64-windows/bin"
+        "C:/msys64/mingw64/bin"
+    )
+
+    set(REQUIRED_RUNTIME_DLLS
+        "libgcc_s_seh-1.dll"
+        "libstdc++-6.dll"
+        "libwinpthread-1.dll"
+        "libcurl-4.dll"
+        "libsqlite3-0.dll"
+        "libssl-3-x64.dll"
+        "libcrypto-3-x64.dll"
+        "libbrotlidec.dll"
+        "libbrotlicommon.dll"
+        "libidn2-0.dll"
+        "libnghttp2-14.dll"
+        "libnghttp3-9.dll"
+        "libngtcp2-16.dll"
+        "libngtcp2_crypto_ossl-0.dll"
+        "libpsl-5.dll"
+        "libssh2-1.dll"
+        "libzstd.dll"
+        "zlib1.dll"
+        "iconv-2.dll"
+        "libintl-8.dll"
+        "libiconv-2.dll"
+        "libunistring-5.dll"
+    )
+
+    if(BUILD_GUI)
+        list(APPEND REQUIRED_RUNTIME_DLLS
+            "Qt6Core.dll"
+            "Qt6Gui.dll"
+            "Qt6Widgets.dll"
+            "Qt6Network.dll"
+            "libmd4c.dll"
+            "libfreetype-6.dll"
+            "libharfbuzz-0.dll"
+            "libpng16-16.dll"
+            "libb2-1.dll"
+            "libdouble-conversion.dll"
+            "libicudt78.dll"
+            "libicuin78.dll"
+            "libicuuc78.dll"
+            "libpcre2-16-0.dll"
+            "libpcre2-8-0.dll"
+            "libglib-2.0-0.dll"
+            "libgobject-2.0-0.dll"
+            "libgio-2.0-0.dll"
+            "libgmodule-2.0-0.dll"
+            "libgthread-2.0-0.dll"
+            "libffi-8.dll"
+            "libgraphite2.dll"
+            "libbz2-1.dll"
+        )
+    endif()
+
+    set(TARGETS_TO_UPDATE "")
+    if(BUILD_CLI)
+        list(APPEND TARGETS_TO_UPDATE remo_service remo_cli remo_cli_client)
+    endif()
+    if(BUILD_GUI)
+        list(APPEND TARGETS_TO_UPDATE ${REMOODOWNLOAD_NAME})
+    endif()
+
+    foreach(target_item ${TARGETS_TO_UPDATE})
+        if(TARGET ${target_item})
+            foreach(dll_name ${REQUIRED_RUNTIME_DLLS})
+                foreach(search_dir ${DLL_SEARCH_DIRS})
+                    if(EXISTS "${search_dir}/${dll_name}")
+                        add_custom_command(TARGET ${target_item} POST_BUILD
+                            COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                                "${search_dir}/${dll_name}"
+                                "$<TARGET_FILE_DIR:${target_item}>/${dll_name}"
+                            COMMENT "Copying ${dll_name} to $<TARGET_FILE_DIR:${target_item}>"
+                        )
+                        break()
+                    endif()
+                endforeach()
+            endforeach()
+
+            if(BUILD_GUI AND EXISTS "C:/msys64/mingw64/share/qt6/plugins/platforms/qwindows.dll")
+                add_custom_command(TARGET ${target_item} POST_BUILD
+                    COMMAND ${CMAKE_COMMAND} -E make_directory "$<TARGET_FILE_DIR:${target_item}>/platforms"
+                    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                        "C:/msys64/mingw64/share/qt6/plugins/platforms/qwindows.dll"
+                        "$<TARGET_FILE_DIR:${target_item}>/platforms/qwindows.dll"
+                    COMMENT "Copying Qt qwindows.dll plugin"
+                )
+            endif()
+        endif()
+    endforeach()
+endif()
+
 if(BUILD_TESTS)
     enable_testing()
     add_subdirectory(tests)

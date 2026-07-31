@@ -11,6 +11,7 @@ QT_BEGIN_NAMESPACE
 class QSystemTrayIcon;
 class QMenu;
 class QAction;
+class QWidget;
 QT_END_NAMESPACE
 
 namespace remo {
@@ -21,7 +22,8 @@ public:
     TrayIcon();
     ~TrayIcon();
 
-    void start();
+    /// \param mainWindow  Pointer to the main window widget (to show on open).
+    void start(QWidget* mainWindow = nullptr);
     void stop();
     void setDownloadCount(int count);
     void setTotalSpeed(double bytesPerSec);

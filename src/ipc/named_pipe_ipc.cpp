@@ -193,27 +193,25 @@ std::string NamedPipeIpcClient::sendRequest(const std::string& requestJson) {
     std::lock_guard<std::mutex> lock(mutex);
 
 #ifdef _WIN32
-    HANDLE hPipe = CreateFileA(
-        fullPipeName.c_str(),
-        GENERIC_READ | GENERIC_WRITE,
-        0,
-        NULL,
-        OPEN_EXISTING,
-        0,
-        NULL
-    );
-
-    if (hPipe == INVALID_HANDLE_VALUE) {
-        if (WaitNamedPipeA(fullPipeName.c_str(), 2000)) {
-            hPipe = CreateFileA(
-                fullPipeName.c_str(),
-                GENERIC_READ | GENERIC_WRITE,
-                0,
-                NULL,
-                OPEN_EXISTING,
-                0,
-                NULL
-            );
+    HANDLE hPipe = INVALID_HANDLE_VALUE;
+    for (int retry = 0; retry < 50; ++retry) {
+        hPipe = CreateFileA(
+            fullPipeName.c_str(),
+            GENERIC_READ | GENERIC_WRITE,
+            0,
+            NULL,
+            OPEN_EXISTING,
+            0,
+            NULL
+        );
+        if (hPipe != INVALID_HANDLE_VALUE) {
+            break;
+        }
+        DWORD err = GetLastError();
+        if (err == ERROR_PIPE_BUSY) {
+            WaitNamedPipeA(fullPipeName.c_str(), 1000);
+        } else {
+            std::this_thread::sleep_for(std::chrono::milliseconds(50));
         }
     }
 

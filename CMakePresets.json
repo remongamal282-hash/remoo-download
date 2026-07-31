@@ -47,6 +47,21 @@
                 "BUILD_TESTS": "ON",
                 "ENABLE_ASAN_UBSAN": "ON"
             }
+        },
+        {
+            "name": "gui-debug",
+            "displayName": "GUI Debug Build (Qt6)",
+            "generator": "Ninja",
+            "binaryDir": "${sourceDir}/build/gui-debug",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug",
+                "CMAKE_C_COMPILER": "C:/msys64/mingw64/bin/gcc.exe",
+                "CMAKE_CXX_COMPILER": "C:/msys64/mingw64/bin/g++.exe",
+                "CMAKE_PREFIX_PATH": "C:/msys64/mingw64",
+                "BUILD_GUI": "ON",
+                "BUILD_CLI": "ON",
+                "BUILD_TESTS": "ON"
+            }
         }
     ],
     "buildPresets": [
@@ -65,6 +80,10 @@
         {
             "name": "asan-ubsan",
             "configurePreset": "asan-ubsan"
+        },
+        {
+            "name": "gui-debug",
+            "configurePreset": "gui-debug"
         }
     ],
     "testPresets": [

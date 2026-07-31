@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <filesystem>
 #include <fstream>
+#include <iostream>
 #include <thread>
 #include <utility>
 
@@ -20,7 +21,13 @@ bool CurlNetworkClient::head(const std::string& url, NetworkResourceInfo& info) 
     std::string etag;
     std::string lastModified;
     std::string finalUrl;
-    if (!http.sendHeadRequest(url, fileSize, etag, lastModified, finalUrl)) {
+    std::string errorMessage;
+
+    if (!http.sendHeadRequest(url, fileSize, etag, lastModified, finalUrl, errorMessage)) {
+        // Log the real curl error so it appears in service stderr/logs
+        std::cerr << "[CurlNetworkClient::head] FAILED url=" << url
+                  << " error=" << errorMessage << "\n";
+        info.errorMessage = errorMessage;
         return false;
     }
 
@@ -36,10 +43,35 @@ bool CurlNetworkClient::downloadToFile(const std::string& url,
                                        const ByteRange& range,
                                        const std::string& outputPath,
                                        ProgressCallback progressCb) {
+    // Ensure parent directory exists
+    const std::filesystem::path outPath(outputPath);
+    const std::filesystem::path parentDir = outPath.parent_path();
+    if (!parentDir.empty()) {
+        std::error_code ec;
+        std::filesystem::create_directories(parentDir, ec);
+        if (ec) {
+            std::cerr << "[CurlNetworkClient::downloadToFile] Failed to create directory: "
+                      << parentDir.string() << " error=" << ec.message() << "\n";
+            return false;
+        }
+    }
+
     HttpEngine http;
-    (void)progressCb;
-    return http.downloadSegment(url, range.start, range.end, outputPath);
+    std::string errorMessage;
+    bool ok = http.downloadSegment(url, range.start, range.end, outputPath,
+                                   progressCb, errorMessage);
+    if (!ok) {
+        std::cerr << "[CurlNetworkClient::downloadToFile] FAILED url=" << url
+                  << " range=[" << range.start << "," << range.end << "]"
+                  << " output=" << outputPath
+                  << " error=" << errorMessage << "\n";
+    }
+    return ok;
 }
+
+// ---------------------------------------------------------------------------
+// MockNetworkClient (unchanged below)
+// ---------------------------------------------------------------------------
 
 void MockNetworkClient::setResourceInfo(const NetworkResourceInfo& info) {
     std::lock_guard<std::mutex> lock(mutex);

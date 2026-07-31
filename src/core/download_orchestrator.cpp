@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <cctype>
 #include <filesystem>
+#include <iostream>
 #include <sstream>
 
 namespace remo {
@@ -102,9 +103,38 @@ bool DownloadOrchestrator::start() {
         }
     }
 
-    // Task 1.3 requirement: Startup Recovery execution on launch
+    // Task 1.3 requirement: Startup Recovery execution on launch.
+    // Phase 1: update disk byte counts for all unfinished records (no lock issues).
     if (downloadEngine && storageManager) {
         downloadEngine->recoverUnfinishedDownloads();
+    }
+
+    // Phase 2: actually restart each unfinished download so it resumes downloading.
+    // We use hintId = record.id so the engine stores the task under the same ID
+    // the DB already has, keeping getProgress(record.id) lookups correct.
+    if (downloadEngine && storageManager) {
+        auto unfinished = storageManager->getUnfinishedDownloads();
+        for (const auto& record : unfinished) {
+            if (record.url.empty() || record.filename.empty()) continue;
+
+            engine::DownloadRequest req;
+            req.url        = record.url;
+            req.filename   = record.filename;
+            req.savePath   = record.savePath;
+            req.categoryId = record.sourceExtension;
+            req.hintId     = record.id;   // <-- engine will store task under this ID
+
+            int64_t engineId = downloadEngine->startDownload(req);
+            if (engineId > 0) {
+                storageManager->updateDownloadStatus(engineId, "downloading");
+                std::cout << "[remo_service] Recovery: restarted download id="
+                          << engineId << " url=" << record.url << "\n";
+            } else {
+                std::cout << "[remo_service] Recovery: HEAD failed for download id="
+                          << record.id << " url=" << record.url
+                          << " (will retry on next launch)\n";
+            }
+        }
     }
 
     running = true;
@@ -162,8 +192,10 @@ std::string DownloadOrchestrator::processRequest(const std::string& requestJson)
 int64_t DownloadOrchestrator::addDownload(const std::string& url,
                                           const std::string& savePath,
                                           const std::string& filename,
-                                          const std::string& category) {
+                                          const std::string& category,
+                                          std::string& errorMessage) {
     if (!downloadEngine) {
+        errorMessage = "DownloadEngine not initialized";
         return -1;
     }
 
@@ -187,23 +219,50 @@ int64_t DownloadOrchestrator::addDownload(const std::string& url,
         effectiveSavePath = std::filesystem::current_path().string();
     }
 
-    if (storageManager) {
-        storage::DownloadRecord record;
-        record.url = url;
-        record.filename = effectiveFilename;
-        record.savePath = effectiveSavePath;
-        record.status = "queued";
-        record.sourceExtension = category;
-        storageManager->saveDownload(record);
+    // Proactively create save directory so the engine doesn't fail on missing dir
+    {
+        std::error_code ec;
+        std::filesystem::create_directories(effectiveSavePath, ec);
+        if (ec) {
+            errorMessage = "Failed to create save directory '" + effectiveSavePath
+                           + "': " + ec.message();
+            return -1;
+        }
     }
 
+    // Start the download in the engine FIRST – it assigns the canonical download
+    // ID from its own atomic counter.  We then save the DB record using that same
+    // ID so that handleGetStatus (which looks up engine progress by record.id) always
+    // finds the correct DownloadProgress entry.
     engine::DownloadRequest req;
     req.url = url;
     req.filename = effectiveFilename;
     req.savePath = effectiveSavePath;
     req.categoryId = category;
 
-    return downloadEngine->startDownload(req);
+    int64_t id = downloadEngine->startDownload(req);
+    if (id <= 0) {
+        std::string detailedErr = downloadEngine->getLastError();
+        if (detailedErr.empty()) {
+            detailedErr = "HEAD request failed for '" + url + "'";
+        }
+        errorMessage = "DownloadEngine::startDownload failed (ID " + std::to_string(id) + "): " + detailedErr;
+        return id;
+    }
+
+    // Persist a DB record whose primary key matches the engine ID.
+    if (storageManager) {
+        storage::DownloadRecord record;
+        record.id       = id;              // <-- engine ID used as DB row ID
+        record.url      = url;
+        record.filename = effectiveFilename;
+        record.savePath = effectiveSavePath;
+        record.status   = "downloading";   // engine thread is already running
+        record.sourceExtension = category;
+        storageManager->saveDownload(record);
+    }
+
+    return id;
 }
 
 bool DownloadOrchestrator::pauseDownload(int64_t downloadId) {
@@ -251,9 +310,17 @@ std::string DownloadOrchestrator::handleAddDownload(const std::string& json) {
         return "{\"success\":false,\"errorMessage\":\"URL is required\"}";
     }
 
-    int64_t downloadId = addDownload(url, savePath, filename, category);
+    std::string errorMessage;
+    int64_t downloadId = addDownload(url, savePath, filename, category, errorMessage);
     if (downloadId <= 0) {
-        return "{\"success\":false,\"errorMessage\":\"Failed to start download\"}";
+        // Return the real reason, not a generic message
+        std::string escaped;
+        for (char c : errorMessage) {
+            if (c == '"') escaped += "\\\"";
+            else if (c == '\\') escaped += "\\\\";
+            else escaped += c;
+        }
+        return "{\"success\":false,\"errorMessage\":\"" + escaped + "\"}";
     }
 
     std::ostringstream ss;

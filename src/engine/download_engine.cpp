@@ -52,6 +52,7 @@ public:
     remo::storage::StorageManager* storageManager = nullptr;
     std::shared_ptr<NetworkMonitor> networkMonitor;
     bool fastRetryMode = false;
+    std::string lastError;
 
     static void runTask(Impl* d, std::shared_ptr<DownloadTask> task);
 };
@@ -436,13 +437,24 @@ void DownloadEngine::Impl::runTask(DownloadEngine::Impl* d, std::shared_ptr<Down
     }
 }
 
+std::string DownloadEngine::getLastError() const {
+    std::lock_guard<std::mutex> lock(d->mutex);
+    return d->lastError;
+}
+
 int64_t DownloadEngine::startDownload(const DownloadRequest& request) {
     if (request.url.empty() || request.filename.empty() || !d->networkClient) {
+        std::lock_guard<std::mutex> lock(d->mutex);
+        d->lastError = "Invalid request: empty URL/filename or network client uninitialized";
         return 0;
     }
 
     NetworkResourceInfo resourceInfo;
     if (!d->networkClient->head(request.url, resourceInfo)) {
+        std::lock_guard<std::mutex> lock(d->mutex);
+        d->lastError = !resourceInfo.errorMessage.empty()
+            ? resourceInfo.errorMessage
+            : "HEAD request failed for URL: " + request.url;
         return 0;
     }
 
@@ -450,8 +462,20 @@ int64_t DownloadEngine::startDownload(const DownloadRequest& request) {
     std::vector<Segment> segments =
         SegmentPlanner::planSegments(fileSize, d->maxConnections, resourceInfo.supportsRanges);
 
-    // Atomic nextDownloadId increment (Step 5 fix)
-    const int64_t downloadId = d->nextDownloadId.fetch_add(1);
+    // Use hintId (from DB record) when recovering, so engine ID == DB record ID.
+    // Otherwise auto-assign from the atomic counter.
+    int64_t downloadId;
+    if (request.hintId > 0) {
+        downloadId = request.hintId;
+        // Advance the counter past this ID to avoid future collisions.
+        int64_t expected = d->nextDownloadId.load();
+        while (expected <= downloadId) {
+            d->nextDownloadId.compare_exchange_weak(expected, downloadId + 1);
+            expected = d->nextDownloadId.load();
+        }
+    } else {
+        downloadId = d->nextDownloadId.fetch_add(1);
+    }
 
     auto task = std::make_shared<DownloadTask>();
     task->id = downloadId;
@@ -502,12 +526,12 @@ bool DownloadEngine::resumeDownload(int64_t downloadId) {
         task = it->second;
     }
 
-    if (task->isRunning) {
-        return false;
-    }
-
     if (task->runnerThread.joinable()) {
         task->runnerThread.join();
+    }
+
+    if (task->isRunning) {
+        return false;
     }
 
     task->pauseRequested = false;

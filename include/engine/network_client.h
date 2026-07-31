@@ -19,6 +19,7 @@ struct NetworkResourceInfo {
     std::string etag;
     std::string lastModified;
     std::string finalUrl;
+    std::string errorMessage;
 };
 
 struct ByteRange {

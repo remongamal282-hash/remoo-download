@@ -30,7 +30,15 @@ public:
     int64_t addDownload(const std::string& url,
                         const std::string& savePath = "",
                         const std::string& filename = "",
-                        const std::string& category = "");
+                        const std::string& category = "") {
+        std::string err;
+        return addDownload(url, savePath, filename, category, err);
+    }
+    int64_t addDownload(const std::string& url,
+                        const std::string& savePath,
+                        const std::string& filename,
+                        const std::string& category,
+                        std::string& errorMessage);
     bool pauseDownload(int64_t downloadId);
     bool resumeDownload(int64_t downloadId);
     bool cancelDownload(int64_t downloadId);

@@ -5,27 +5,29 @@
 #include <QMenu>
 #include <QAction>
 #include <QStyle>
+#include <QWidget>
 
 namespace remo {
 namespace ui {
 
 class TrayIcon::Impl {
 public:
-    QSystemTrayIcon* trayIcon = nullptr;
-    QMenu* trayMenu = nullptr;
-    QAction* openAction = nullptr;
-    QAction* pauseAllAction = nullptr;
-    QAction* resumeAllAction = nullptr;
-    QAction* openFolderAction = nullptr;
-    QAction* settingsAction = nullptr;
-    QAction* exitAction = nullptr;
-    int downloadCount = 0;
-    double totalSpeed = 0.0;
+    QSystemTrayIcon* trayIcon       = nullptr;
+    QMenu*           trayMenu       = nullptr;
+    QAction*         openAction     = nullptr;
+    QAction*         exitAction     = nullptr;
+    QWidget*         mainWindow     = nullptr;  // not owned
+    int              downloadCount  = 0;
+    double           totalSpeed     = 0.0;
 
     QString tooltip() const {
-        return QObject::tr("%1 تحميلات نشطة - %2 MB/s")
+        return QObject::tr("%1 تحميلات نشطة | %2")
             .arg(downloadCount)
-            .arg(totalSpeed / 1024.0 / 1024.0, 0, 'f', 2);
+            .arg(totalSpeed >= 1024.0 * 1024.0
+                     ? QString("%1 MB/s").arg(totalSpeed / 1024.0 / 1024.0, 0, 'f', 1)
+                     : (totalSpeed >= 1024.0
+                            ? QString("%1 KB/s").arg(totalSpeed / 1024.0, 0, 'f', 1)
+                            : "-"));
     }
 
     ~Impl() {
@@ -39,24 +41,43 @@ TrayIcon::TrayIcon()
 {
     d->trayMenu = new QMenu();
     d->openAction = d->trayMenu->addAction(QObject::tr("فتح Remoo Download"));
-    d->pauseAllAction = d->trayMenu->addAction(QObject::tr("إيقاف الكل"));
-    d->resumeAllAction = d->trayMenu->addAction(QObject::tr("استئناف الكل"));
-    d->trayMenu->addSeparator();
-    d->openFolderAction = d->trayMenu->addAction(QObject::tr("فتح مجلد التحميلات"));
-    d->settingsAction = d->trayMenu->addAction(QObject::tr("إعدادات"));
     d->trayMenu->addSeparator();
     d->exitAction = d->trayMenu->addAction(QObject::tr("خروج"));
 
-    d->trayIcon = new QSystemTrayIcon(QApplication::style()->standardIcon(QStyle::SP_ArrowDown), nullptr);
+    d->trayIcon = new QSystemTrayIcon(
+        QApplication::style()->standardIcon(QStyle::SP_ArrowDown), nullptr);
     d->trayIcon->setContextMenu(d->trayMenu);
-    d->trayIcon->setToolTip(d->tooltip());
+    d->trayIcon->setToolTip("Remoo Download");
 
-    QObject::connect(d->exitAction, &QAction::triggered, qApp, &QApplication::quit);
+    // Open action: show the main window
+    QObject::connect(d->openAction, &QAction::triggered, [this]() {
+        if (d->mainWindow) {
+            d->mainWindow->showNormal();
+            d->mainWindow->activateWindow();
+        }
+    });
+
+    // Double-click on tray icon → show window
+    QObject::connect(d->trayIcon, &QSystemTrayIcon::activated,
+                     [this](QSystemTrayIcon::ActivationReason reason) {
+        if (reason == QSystemTrayIcon::DoubleClick ||
+            reason == QSystemTrayIcon::Trigger) {
+            if (d->mainWindow) {
+                d->mainWindow->showNormal();
+                d->mainWindow->activateWindow();
+            }
+        }
+    });
+
+    // Exit
+    QObject::connect(d->exitAction, &QAction::triggered,
+                     qApp, &QApplication::quit);
 }
 
 TrayIcon::~TrayIcon() = default;
 
-void TrayIcon::start() {
+void TrayIcon::start(QWidget* mainWindow) {
+    d->mainWindow = mainWindow;
     if (d->trayIcon && QSystemTrayIcon::isSystemTrayAvailable()) {
         d->trayIcon->show();
         running = true;
@@ -64,30 +85,26 @@ void TrayIcon::start() {
 }
 
 void TrayIcon::stop() {
-    if (d->trayIcon) {
-        d->trayIcon->hide();
-    }
+    if (d->trayIcon) d->trayIcon->hide();
     running = false;
 }
 
 void TrayIcon::setDownloadCount(int count) {
     d->downloadCount = count;
-    if (d->trayIcon) {
-        d->trayIcon->setToolTip(d->tooltip());
-    }
+    if (d->trayIcon) d->trayIcon->setToolTip(d->tooltip());
 }
 
 void TrayIcon::setTotalSpeed(double bytesPerSec) {
     d->totalSpeed = bytesPerSec;
-    if (d->trayIcon) {
-        d->trayIcon->setToolTip(d->tooltip());
-    }
+    if (d->trayIcon) d->trayIcon->setToolTip(d->tooltip());
 }
 
 void TrayIcon::showNotification(const std::string& title, const std::string& message) {
     if (d->trayIcon && running) {
-        d->trayIcon->showMessage(QString::fromStdString(title), QString::fromStdString(message),
-                                 QSystemTrayIcon::Information, 4000);
+        d->trayIcon->showMessage(
+            QString::fromStdString(title),
+            QString::fromStdString(message),
+            QSystemTrayIcon::Information, 4000);
     }
 }
 

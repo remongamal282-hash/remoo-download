@@ -19,9 +19,13 @@ QT_END_NAMESPACE
 namespace remo {
 namespace ui {
 
+class IpcServiceClient;
+
 class AddDownloadDialog {
 public:
-    explicit AddDownloadDialog(QWidget* parent = nullptr);
+    /// \param ipcClient  Optional — if provided, "بدء التحميل" sends a real IPC addDownload.
+    explicit AddDownloadDialog(QWidget* parent = nullptr,
+                               IpcServiceClient* ipcClient = nullptr);
     ~AddDownloadDialog();
 
     std::string url() const;

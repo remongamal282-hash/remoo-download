@@ -19,41 +19,49 @@
 #include <QStandardPaths>
 #include <QUrl>
 
+#include "ui/ipc_service_client.h"
+
 namespace remo {
 namespace ui {
 
 class AddDownloadDialog::Impl {
 public:
-    QDialog* dialog = nullptr;
-    QLineEdit* urlEdit = nullptr;
-    QLineEdit* filenameEdit = nullptr;
-    QLineEdit* savePathEdit = nullptr;
-    QSpinBox* connectionsSpinBox = nullptr;
-    QSpinBox* prioritySpinBox = nullptr;
-    QComboBox* categoryCombo = nullptr;
-    QComboBox* startModeCombo = nullptr;
-    QCheckBox* scheduleCheckBox = nullptr;
-    QPushButton* cancelButton = nullptr;
-    QPushButton* okButton = nullptr;
+    QDialog*          dialog           = nullptr;
+    QLineEdit*        urlEdit          = nullptr;
+    QLineEdit*        filenameEdit     = nullptr;
+    QLineEdit*        savePathEdit     = nullptr;
+    QSpinBox*         connectionsSpinBox = nullptr;
+    QSpinBox*         prioritySpinBox  = nullptr;
+    QComboBox*        categoryCombo    = nullptr;
+    QComboBox*        startModeCombo   = nullptr;
+    QCheckBox*        scheduleCheckBox = nullptr;
+    IpcServiceClient* ipcClient        = nullptr;  // not owned
+    bool              submitted        = false;
 
-    ~Impl() {
-        delete dialog;
-    }
+    ~Impl() { delete dialog; }
 };
 
-AddDownloadDialog::AddDownloadDialog(QWidget* parent)
+AddDownloadDialog::AddDownloadDialog(QWidget* parent, IpcServiceClient* ipcClient)
     : d(std::make_unique<Impl>())
 {
+    d->ipcClient = ipcClient;
+
     d->dialog = new QDialog(parent);
     d->dialog->setWindowTitle(QObject::tr("إضافة رابط تحميل جديد"));
     d->dialog->setLayoutDirection(Qt::RightToLeft);
     d->dialog->setMinimumWidth(520);
 
     d->urlEdit = new QLineEdit(d->dialog);
+    d->urlEdit->setObjectName("urlEdit");
     d->urlEdit->setPlaceholderText(QObject::tr("https://example.com/file.zip"));
+
     d->filenameEdit = new QLineEdit(d->dialog);
+    d->filenameEdit->setObjectName("filenameEdit");
+    d->filenameEdit->setPlaceholderText(QObject::tr("يتملأ تلقائياً من الرابط"));
+
     d->savePathEdit = new QLineEdit(
         QStandardPaths::writableLocation(QStandardPaths::DownloadLocation), d->dialog);
+    d->savePathEdit->setObjectName("savePathEdit");
 
     d->connectionsSpinBox = new QSpinBox(d->dialog);
     d->connectionsSpinBox->setRange(1, 32);
@@ -63,16 +71,22 @@ AddDownloadDialog::AddDownloadDialog(QWidget* parent)
     d->prioritySpinBox->setRange(-10, 10);
 
     d->categoryCombo = new QComboBox(d->dialog);
-    d->categoryCombo->addItems({QObject::tr("فيديو"), QObject::tr("برامج"),
-                                QObject::tr("مستندات"), QObject::tr("صوت"),
-                                QObject::tr("أخرى")});
+    d->categoryCombo->addItems({
+        QObject::tr("فيديو"), QObject::tr("برامج"),
+        QObject::tr("مستندات"), QObject::tr("صوت"),
+        QObject::tr("أخرى")
+    });
 
     d->startModeCombo = new QComboBox(d->dialog);
-    d->startModeCombo->addItems({QObject::tr("بدء فوري"), QObject::tr("إضافة للطابور فقط")});
+    d->startModeCombo->addItems({
+        QObject::tr("بدء فوري"),
+        QObject::tr("إضافة للطابور فقط")
+    });
 
-    d->scheduleCheckBox = new QCheckBox(QObject::tr("جدولة وقت البدء لاحقًا"), d->dialog);
+    d->scheduleCheckBox = new QCheckBox(
+        QObject::tr("جدولة وقت البدء لاحقًا"), d->dialog);
 
-    auto* pasteButton = new QPushButton(QObject::tr("لصق من الحافظة"), d->dialog);
+    auto* pasteButton  = new QPushButton(QObject::tr("لصق من الحافظة"), d->dialog);
     auto* browseButton = new QPushButton(QObject::tr("تصفح..."), d->dialog);
 
     auto* urlRow = new QHBoxLayout();
@@ -85,27 +99,29 @@ AddDownloadDialog::AddDownloadDialog(QWidget* parent)
 
     auto* form = new QFormLayout();
     form->setLabelAlignment(Qt::AlignRight);
-    form->addRow(QObject::tr("الرابط:"), urlRow);
-    form->addRow(QObject::tr("اسم الملف:"), d->filenameEdit);
-    form->addRow(QObject::tr("مسار الحفظ:"), pathRow);
-    form->addRow(QObject::tr("الفئة:"), d->categoryCombo);
+    form->addRow(QObject::tr("الرابط:"),      urlRow);
+    form->addRow(QObject::tr("اسم الملف:"),   d->filenameEdit);
+    form->addRow(QObject::tr("مسار الحفظ:"),  pathRow);
+    form->addRow(QObject::tr("الفئة:"),        d->categoryCombo);
 
     auto* advanced = new QGroupBox(QObject::tr("خيارات متقدمة"), d->dialog);
     advanced->setCheckable(true);
     advanced->setChecked(false);
     auto* advancedForm = new QFormLayout(advanced);
     advancedForm->addRow(QObject::tr("عدد الاتصالات:"), d->connectionsSpinBox);
-    advancedForm->addRow(QObject::tr("الأولوية:"), d->prioritySpinBox);
-    advancedForm->addRow(QObject::tr("طريقة البدء:"), d->startModeCombo);
-    advancedForm->addRow(QString(), d->scheduleCheckBox);
+    advancedForm->addRow(QObject::tr("الأولوية:"),      d->prioritySpinBox);
+    advancedForm->addRow(QObject::tr("طريقة البدء:"),   d->startModeCombo);
+    advancedForm->addRow(QString(),                      d->scheduleCheckBox);
 
     auto* hint = new QLabel(
-        QObject::tr("سيتم فحص الرابط في الخلفية لاحقًا قبل بدء التحميل الفعلي."), d->dialog);
+        QObject::tr("سيتم فحص الرابط في الخلفية لاحقًا قبل بدء التحميل الفعلي."),
+        d->dialog);
     hint->setObjectName("secondaryText");
     hint->setWordWrap(true);
 
-    auto* buttons = new QDialogButtonBox(QDialogButtonBox::Cancel | QDialogButtonBox::Ok,
-                                         Qt::Horizontal, d->dialog);
+    auto* buttons = new QDialogButtonBox(
+        QDialogButtonBox::Cancel | QDialogButtonBox::Ok,
+        Qt::Horizontal, d->dialog);
     buttons->button(QDialogButtonBox::Ok)->setText(QObject::tr("بدء التحميل"));
     buttons->button(QDialogButtonBox::Cancel)->setText(QObject::tr("إلغاء"));
 
@@ -115,34 +131,59 @@ AddDownloadDialog::AddDownloadDialog(QWidget* parent)
     layout->addWidget(hint);
     layout->addWidget(buttons);
 
+    // --- Connections ---
+
     QObject::connect(pasteButton, &QPushButton::clicked, [this]() {
         d->urlEdit->setText(QApplication::clipboard()->text().trimmed());
     });
+
     QObject::connect(browseButton, &QPushButton::clicked, [this]() {
-        const QString path = QFileDialog::getExistingDirectory(d->dialog, QObject::tr("اختر مسار الحفظ"),
-                                                               d->savePathEdit->text());
-        if (!path.isEmpty()) {
-            d->savePathEdit->setText(path);
-        }
+        const QString path = QFileDialog::getExistingDirectory(
+            d->dialog, QObject::tr("اختر مسار الحفظ"), d->savePathEdit->text());
+        if (!path.isEmpty()) d->savePathEdit->setText(path);
     });
+
+    // Auto-fill filename from URL
     QObject::connect(d->urlEdit, &QLineEdit::textChanged, [this](const QString& value) {
-        if (!d->filenameEdit->text().isEmpty()) {
-            return;
-        }
+        if (!d->filenameEdit->text().isEmpty()) return;
         const QString filename = QUrl(value).fileName();
-        if (!filename.isEmpty()) {
-            d->filenameEdit->setText(filename);
-        }
+        if (!filename.isEmpty()) d->filenameEdit->setText(filename);
     });
+
+    // OK button — validate then send IPC
     QObject::connect(buttons, &QDialogButtonBox::accepted, [this]() {
-        if (d->urlEdit->text().trimmed().isEmpty()) {
+        const QString urlStr = d->urlEdit->text().trimmed();
+        if (urlStr.isEmpty()) {
             QMessageBox::warning(d->dialog, QObject::tr("رابط مطلوب"),
                                  QObject::tr("أدخل رابط التحميل أولًا."));
             return;
         }
+
+        if (d->ipcClient) {
+            // Send real IPC addDownload
+            int newId = d->ipcClient->addDownload(
+                urlStr.toStdString(),
+                d->filenameEdit->text().trimmed().toStdString(),
+                d->savePathEdit->text().trimmed().toStdString(),
+                d->categoryCombo->currentText().toStdString());
+
+            if (newId <= 0) {
+                QMessageBox::critical(d->dialog,
+                    QObject::tr("خطأ في الإضافة"),
+                    QObject::tr("فشل إرسال الطلب إلى الخدمة.\n"
+                                "تأكد من تشغيل remo_service وأعد المحاولة."));
+                return;
+            }
+            QMessageBox::information(d->dialog,
+                QObject::tr("تمت الإضافة"),
+                QObject::tr("تمت إضافة التحميل بنجاح (ID: %1)").arg(newId));
+        }
+        d->submitted = true;
         d->dialog->accept();
     });
-    QObject::connect(buttons, &QDialogButtonBox::rejected, d->dialog, &QDialog::reject);
+
+    QObject::connect(buttons, &QDialogButtonBox::rejected,
+                     d->dialog, &QDialog::reject);
 }
 
 AddDownloadDialog::~AddDownloadDialog() = default;

@@ -19,6 +19,8 @@ QT_END_NAMESPACE
 namespace remo {
 namespace ui {
 
+class IpcServiceClient;
+
 class MainWindow {
 public:
     MainWindow();
@@ -26,6 +28,9 @@ public:
 
     void show();
     void close();
+
+    /// Called by the close event to minimise to tray instead of quitting.
+    bool handleCloseEvent();
 
 private:
     class Impl;

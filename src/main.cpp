@@ -14,25 +14,31 @@ int main(int argc, char* argv[]) {
     QApplication::setOrganizationDomain(REMOODOWNLOAD_DOMAIN);
     QApplication::setLayoutDirection(Qt::RightToLeft);
 
-    QString themePath = QDir(QApplication::applicationDirPath()).filePath("resources/themes/dark.qss");
+    // Keep app alive when last window is hidden (tray mode)
+    QApplication::setQuitOnLastWindowClosed(false);
+
+    // Load dark theme
+    QString themePath = QDir(QApplication::applicationDirPath())
+                            .filePath("resources/themes/dark.qss");
     QFile themeFile(themePath);
     if (!themeFile.exists()) {
-        themeFile.setFileName(QDir(QStringLiteral(REMOODOWNLOAD_SOURCE_DIR)).filePath("resources/themes/dark.qss"));
+        themeFile.setFileName(
+            QDir(QStringLiteral(REMOODOWNLOAD_SOURCE_DIR))
+                .filePath("resources/themes/dark.qss"));
     }
     if (themeFile.open(QIODevice::ReadOnly | QIODevice::Text)) {
         app.setStyleSheet(QTextStream(&themeFile).readAll());
     }
 
+    // CLI parser
     QCommandLineParser parser;
     parser.setApplicationDescription("Remoo Download - Open Source Download Manager");
     parser.addHelpOption();
     parser.addVersionOption();
 
     QCommandLineOption downloadOption(
-        QStringList() << "d"
-                      << "download",
-        "Start downloading a URL immediately",
-        "url");
+        QStringList() << "d" << "download",
+        "Start downloading a URL immediately", "url");
     parser.addOption(downloadOption);
 
     parser.process(app);
@@ -41,8 +47,8 @@ int main(int argc, char* argv[]) {
     window.show();
 
     if (parser.isSet(downloadOption)) {
-        QString url = parser.value(downloadOption);
-        Q_UNUSED(url)
+        // TODO v0.5: pass URL directly to AddDownloadDialog
+        Q_UNUSED(parser.value(downloadOption))
     }
 
     return app.exec();
