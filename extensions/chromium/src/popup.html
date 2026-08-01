@@ -7,20 +7,70 @@
   </head>
   <body>
     <main>
+      <div class="header">
+        <h1>Remoo Download</h1>
+        <div id="connectionStatus" class="status-badge status-unknown">
+          <span class="status-dot"></span>
+          <span id="statusText">Checking...</span>
+        </div>
+      </div>
+
+      <div class="divider"></div>
+
+      <div id="lastDownloadSection" class="last-download-section hidden">
+        <div class="section-header">
+          <span class="section-title">Last Download</span>
+        </div>
+
+        <div class="download-info">
+          <div class="download-name" id="lastDownloadName">—</div>
+          <div class="download-status">
+            <span id="lastDownloadStatus" class="status-text">Unknown</span>
+            <span id="lastDownloadProgress" class="progress-text">—</span>
+          </div>
+          <div class="progress-bar-container">
+            <div id="lastDownloadProgressBar" class="progress-bar" style="width: 0%"></div>
+          </div>
+        </div>
+
+        <button id="openFolder" type="button" class="secondary icon-button">
+          <span>📁</span>
+          <span>Open Folder</span>
+        </button>
+      </div>
+
+      <div class="divider"></div>
+
       <label class="row">
         <span>Intercept downloads</span>
         <input id="enabled" type="checkbox">
       </label>
-      <label>
-        Minimum size
-        <input id="minSizeMb" type="number" min="0" step="1">
-        <span>MB</span>
+
+      <label class="row">
+        <span>Auto-launch Remoo Download</span>
+        <input id="autoLaunchGui" type="checkbox">
       </label>
+
       <label>
-        Extensions
-        <input id="extensions" type="text" placeholder="zip,mp4,pdf">
+        <span class="label-text">Minimum size</span>
+        <div class="input-with-unit">
+          <input id="minSizeMb" type="number" min="0" step="1">
+          <span class="unit">MB</span>
+        </div>
       </label>
-      <button id="save" type="button">Save</button>
+
+      <label>
+        <span class="label-text">File extensions</span>
+        <input id="extensions" type="text" placeholder="zip, mp4, pdf, exe">
+        <span class="hint">Comma-separated list. Leave empty to intercept all files.</span>
+      </label>
+
+      <div class="button-row">
+        <button id="save" type="button" class="primary">Save Settings</button>
+        <button id="testConnection" type="button" class="secondary">Test Connection</button>
+      </div>
+
+      <div id="messageBox" class="message-box hidden"></div>
     </main>
     <script src="popup.js"></script>
   </body>

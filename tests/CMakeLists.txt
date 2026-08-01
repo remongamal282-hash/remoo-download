@@ -19,6 +19,8 @@ set(TEST_SOURCES
     unit/test_download_engine.cpp
     unit/test_ipc_orchestrator.cpp
     unit/test_real_network_integration.cpp
+    unit/test_native_messaging_protocol.cpp
+    unit/test_native_host_integration.cpp
 )
 
 add_executable(remo_tests ${TEST_SOURCES})

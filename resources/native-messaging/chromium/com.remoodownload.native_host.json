@@ -1,9 +1,9 @@
 {
   "name": "com.remoodownload.native_host",
-  "description": "Remoo Download Native Messaging Host",
-  "path": "remo_native_host",
+  "description": "Remoo Download Native Messaging Host - forwards downloads to Remoo Download service",
+  "path": "PLACEHOLDER_INSTALL_PATH\\remo_native_host.exe",
   "type": "stdio",
   "allowed_origins": [
-    "chrome-extension://aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/"
+    "chrome-extension://placeholder-extension-id-here/"
   ]
 }

@@ -216,6 +216,10 @@ if(BUILD_GUI)
         ${REMOODOWNLOAD_CORE_TARGET}
     )
 
+    set_target_properties(${REMOODOWNLOAD_NATIVE_HOST_TARGET} PROPERTIES
+        RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
+    )
+
     set_target_properties(${REMOODOWNLOAD_NAME} PROPERTIES
         RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
         MACOSX_BUNDLE ON
@@ -351,7 +355,7 @@ if(WIN32)
         list(APPEND TARGETS_TO_UPDATE remo_service remo_cli remo_cli_client)
     endif()
     if(BUILD_GUI)
-        list(APPEND TARGETS_TO_UPDATE ${REMOODOWNLOAD_NAME})
+        list(APPEND TARGETS_TO_UPDATE ${REMOODOWNLOAD_NAME} ${REMOODOWNLOAD_NATIVE_HOST_TARGET})
     endif()
 
     foreach(target_item ${TARGETS_TO_UPDATE})
